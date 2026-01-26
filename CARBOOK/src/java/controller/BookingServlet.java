@@ -109,3 +109,171 @@ public class BookingServlet extends HttpServlet {
         request.setAttribute("bookings", bookings);
         request.getRequestDispatcher("bookings.jsp").forward(request, response);
     }
+
+    private void showBookingForm(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        String carIdStr = request.getParameter("carId");
+        
+        System.out.println("showBookingForm called with carId: " + carIdStr);
+        
+        if (carIdStr == null || carIdStr.isEmpty()) {
+            response.sendRedirect("cars");
+            return;
+        }
+        
+        try {
+            int carId = Integer.parseInt(carIdStr);
+            System.out.println("Fetching car with ID: " + carId);
+            
+            Car car = carDAO.getCarById(carId);
+            System.out.println("Car fetched: " + (car != null ? car.getCarId() : "null"));
+            
+            if (car == null) {
+                request.getSession().setAttribute("error", "Không tìm thấy xe");
+                response.sendRedirect("cars");
+                return;
+            }
+            
+            if (!"Available".equals(car.getStatus())) {
+                request.getSession().setAttribute("error", "Xe không khả dụng");
+                response.sendRedirect("cars");
+                return;
+            }
+            
+            // Forward search parameters to booking form
+            String pickupLocation = request.getParameter("pickupLocation");
+            String dropoffLocation = request.getParameter("dropoffLocation");
+            String pickupDate = request.getParameter("pickupDate");
+            String dropoffDate = request.getParameter("dropoffDate");
+            String pickupTime = request.getParameter("pickupTime");
+            
+            if (pickupLocation != null) request.setAttribute("pickupLocation", pickupLocation);
+            if (dropoffLocation != null) request.setAttribute("dropoffLocation", dropoffLocation);
+            if (pickupDate != null) request.setAttribute("pickupDate", pickupDate);
+            if (dropoffDate != null) request.setAttribute("dropoffDate", dropoffDate);
+            if (pickupTime != null) request.setAttribute("pickupTime", pickupTime);
+            
+            System.out.println("Forwarding to booking-form.jsp");
+            request.setAttribute("car", car);
+            request.getRequestDispatcher("booking-form.jsp").forward(request, response);
+        } catch (Exception e) {
+            System.out.println("Error in showBookingForm: " + e.getMessage());
+            e.printStackTrace();
+            request.getSession().setAttribute("error", "Lỗi: " + e.getMessage());
+            response.sendRedirect("cars");
+        }
+    }
+
+    private void createBooking(HttpServletRequest request, HttpServletResponse response, User user)
+            throws ServletException, IOException {
+        try {
+            System.out.println("=== CREATE BOOKING START ===");
+            
+            int carId = Integer.parseInt(request.getParameter("carId"));
+            System.out.println("Car ID: " + carId);
+            
+            Car car = carDAO.getCarById(carId);
+            
+            if (car == null) {
+                System.out.println("Car not found!");
+                request.getSession().setAttribute("error", "Không tìm thấy xe");
+                response.sendRedirect("cars");
+                return;
+            }
+            
+            String pickupDateStr = request.getParameter("pickupDate");
+            String returnDateStr = request.getParameter("returnDate");
+            
+            System.out.println("Pickup Date String: " + pickupDateStr);
+            System.out.println("Return Date String: " + returnDateStr);
+            
+            if (pickupDateStr == null || pickupDateStr.isEmpty() || 
+                returnDateStr == null || returnDateStr.isEmpty()) {
+                System.out.println("Date strings are empty!");
+                request.getSession().setAttribute("error", "Vui lòng chọn ngày giờ nhận và trả xe");
+                request.setAttribute("car", car);
+                request.getRequestDispatcher("booking-form.jsp").forward(request, response);
+                return;
+            }
+            
+            // Parse format: yyyy-MM-dd HH:mm:ss (already formatted from form)
+            Timestamp pickupDate = Timestamp.valueOf(pickupDateStr);
+            Timestamp returnDate = Timestamp.valueOf(returnDateStr);
+            
+            System.out.println("Pickup Date: " + pickupDate);
+            System.out.println("Return Date: " + returnDate);
+            
+            // Validate dates
+            LocalDateTime pickup = pickupDate.toLocalDateTime();
+            LocalDateTime returnTime = returnDate.toLocalDateTime();
+            
+            if (returnTime.isBefore(pickup)) {
+                request.getSession().setAttribute("error", "Ngày trả xe phải sau ngày nhận xe");
+                request.setAttribute("car", car);
+                request.getRequestDispatcher("booking-form.jsp").forward(request, response);
+                return;
+            }
+            
+            // Calculate total days and hours
+            long totalHours = ChronoUnit.HOURS.between(pickup, returnTime);
+            int totalDays = (int) ChronoUnit.DAYS.between(pickup, returnTime);
+            
+            if (totalDays == 0) {
+                totalDays = 1; // Minimum 1 day
+            }
+            
+            System.out.println("Total Days: " + totalDays + ", Total Hours: " + totalHours);
+            
+            // Calculate pricing
+            BigDecimal basePrice = car.getPricePerDay().multiply(new BigDecimal(totalDays));
+            BigDecimal taxRate = new BigDecimal("0.10"); // 10% tax
+            BigDecimal taxAmount = basePrice.multiply(taxRate);
+            BigDecimal totalAmount = basePrice.add(taxAmount);
+            
+            System.out.println("Base Price: " + basePrice + ", Total: " + totalAmount);
+            
+            // Create booking
+            Booking booking = new Booking();
+            booking.setCarId(carId);
+            booking.setCustomerId(user.getUserId());
+            booking.setBookingReference(bookingDAO.generateBookingReference());
+            booking.setPickupDate(pickupDate);
+            booking.setReturnDate(returnDate);
+            booking.setPickupLocation(request.getParameter("pickupLocation"));
+            booking.setReturnLocation(request.getParameter("returnLocation"));
+            booking.setTotalDays(totalDays);
+            booking.setTotalHours((int) totalHours);
+            booking.setBasePrice(basePrice);
+            booking.setTaxAmount(taxAmount);
+            booking.setDiscountAmount(BigDecimal.ZERO);
+            booking.setTotalAmount(totalAmount);
+            booking.setStatus("Pending");
+            booking.setNotes(request.getParameter("notes"));
+            
+            System.out.println("Creating booking...");
+            int bookingId = bookingDAO.createBooking(booking);
+            System.out.println("Booking ID: " + bookingId);
+            
+            if (bookingId > 0) {
+                // Update car status
+                carDAO.updateCarStatus(carId, "Booked");
+                
+                System.out.println("Booking created successfully!");
+                request.getSession().setAttribute("success", "Đặt xe thành công! Mã đặt xe: " + booking.getBookingReference());
+                response.sendRedirect("booking?action=view&id=" + bookingId);
+            } else {
+                System.out.println("Failed to create booking!");
+                request.getSession().setAttribute("error", "Lỗi khi tạo đặt xe");
+                request.setAttribute("car", car);
+                request.getRequestDispatcher("booking-form.jsp").forward(request, response);
+            }
+        } catch (Exception e) {
+            System.out.println("=== ERROR IN CREATE BOOKING ===");
+            System.out.println("Error: " + e.getMessage());
+            e.printStackTrace();
+            request.getSession().setAttribute("error", "Lỗi: " + e.getMessage());
+            response.sendRedirect("cars");
+        }
+    }
+
+    
