@@ -189,4 +189,101 @@ public class CarManagementServlet extends HttpServlet {
         request.getRequestDispatcher("car-detail.jsp").forward(request, response);
     }
 
-    
+    private void createCar(HttpServletRequest request, HttpServletResponse response, User user)
+            throws ServletException, IOException {
+        try {
+            Car car = new Car();
+            car.setOwnerId(user.getUserId());
+            car.setModelId(Integer.parseInt(request.getParameter("modelId")));
+            car.setCategoryId(Integer.parseInt(request.getParameter("categoryId")));
+            car.setLicensePlate(request.getParameter("licensePlate"));
+            car.setVinNumber(request.getParameter("vinNumber"));
+            car.setColor(request.getParameter("color"));
+            car.setSeats(Integer.parseInt(request.getParameter("seats")));
+            car.setFuelType(request.getParameter("fuelType"));
+            car.setTransmission(request.getParameter("transmission"));
+            
+            String mileageStr = request.getParameter("mileage");
+            if (mileageStr != null && !mileageStr.isEmpty()) {
+                car.setMileage(new BigDecimal(mileageStr));
+            }
+            
+            car.setPricePerDay(new BigDecimal(request.getParameter("pricePerDay")));
+            
+            String pricePerHourStr = request.getParameter("pricePerHour");
+            if (pricePerHourStr != null && !pricePerHourStr.isEmpty()) {
+                car.setPricePerHour(new BigDecimal(pricePerHourStr));
+            }
+            
+            car.setLocation(request.getParameter("location"));
+            car.setDescription(request.getParameter("description"));
+            car.setFeatures(request.getParameter("features"));
+            
+            String insuranceDate = request.getParameter("insuranceExpiryDate");
+            if (insuranceDate != null && !insuranceDate.isEmpty()) {
+                car.setInsuranceExpiryDate(Date.valueOf(insuranceDate));
+            }
+            
+            String registrationDate = request.getParameter("registrationExpiryDate");
+            if (registrationDate != null && !registrationDate.isEmpty()) {
+                car.setRegistrationExpiryDate(Date.valueOf(registrationDate));
+            }
+            
+            car.setStatus("Available");
+            
+            if (carDAO.createCar(car)) {
+                HttpSession session = request.getSession();
+                session.setAttribute("success", "Thêm xe thành công");
+                response.sendRedirect("car-management");
+            } else {
+                request.setAttribute("error", "Lỗi khi thêm xe vào cơ sở dữ liệu");
+                showAddForm(request, response);
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "Lỗi: " + e.getMessage());
+            showAddForm(request, response);
+        }
+    }
+
+    private void updateCar(HttpServletRequest request, HttpServletResponse response, User user)
+            throws ServletException, IOException {
+        try {
+            // System.out.println("=== UPDATE CAR DEBUG ===");
+            // System.out.println("User ID: " + user.getUserId());
+            // System.out.println("User Role ID: " + user.getRoleId());
+            // System.out.println("User Name: " + user.getFullName());
+            
+            int carId = Integer.parseInt(request.getParameter("carId"));
+            Car car = carDAO.getCarById(carId);
+            
+            if (car == null) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Không tìm thấy xe");
+                response.sendRedirect("car-management");
+                return;
+            }
+            
+            // Check ownership
+            if (user.getRoleId() != 1 && car.getOwnerId() != user.getUserId()) {
+                // System.out.println("OWNERSHIP CHECK FAILED!");
+                // System.out.println("Car Owner ID: " + car.getOwnerId());
+                // System.out.println("Current User ID: " + user.getUserId());
+                // System.out.println("User Role ID: " + user.getRoleId());
+                // System.out.println("=======================");
+                
+                request.setAttribute("error", "Bạn không có quyền chỉnh sửa xe này");
+                request.setAttribute("car", car);
+                List<CarBrand> brands = brandDAO.getAllBrands();
+                List<CarCategory> categories = categoryDAO.getAllCategories();
+                List<CarModel> models = null;
+                if (car.getModel() != null && car.getModel().getBrandId() > 0) {
+                    models = modelDAO.getModelsByBrandId(car.getModel().getBrandId());
+                }
+                request.setAttribute("brands", brands);
+                request.setAttribute("categories", categories);
+                request.setAttribute("models", models);
+                request.getRequestDispatcher("car-form.jsp").forward(request, response);
+                return;
+            }
+            
+            
