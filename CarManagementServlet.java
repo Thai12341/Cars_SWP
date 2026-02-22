@@ -286,4 +286,140 @@ public class CarManagementServlet extends HttpServlet {
                 return;
             }
             
+            car.setModelId(Integer.parseInt(request.getParameter("modelId")));
+            car.setCategoryId(Integer.parseInt(request.getParameter("categoryId")));
+            car.setLicensePlate(request.getParameter("licensePlate"));
+            car.setVinNumber(request.getParameter("vinNumber"));
+            car.setColor(request.getParameter("color"));
+            car.setSeats(Integer.parseInt(request.getParameter("seats")));
+            car.setFuelType(request.getParameter("fuelType"));
+            car.setTransmission(request.getParameter("transmission"));
             
+            String mileageStr = request.getParameter("mileage");
+            if (mileageStr != null && !mileageStr.isEmpty()) {
+                car.setMileage(new BigDecimal(mileageStr));
+            }
+            
+            car.setPricePerDay(new BigDecimal(request.getParameter("pricePerDay")));
+            
+            String pricePerHourStr = request.getParameter("pricePerHour");
+            if (pricePerHourStr != null && !pricePerHourStr.isEmpty()) {
+                car.setPricePerHour(new BigDecimal(pricePerHourStr));
+            }
+            
+            car.setLocation(request.getParameter("location"));
+            car.setDescription(request.getParameter("description"));
+            car.setFeatures(request.getParameter("features"));
+            
+            String insuranceDate = request.getParameter("insuranceExpiryDate");
+            if (insuranceDate != null && !insuranceDate.isEmpty()) {
+                car.setInsuranceExpiryDate(Date.valueOf(insuranceDate));
+            }
+            
+            String registrationDate = request.getParameter("registrationExpiryDate");
+            if (registrationDate != null && !registrationDate.isEmpty()) {
+                car.setRegistrationExpiryDate(Date.valueOf(registrationDate));
+            }
+            
+            if (carDAO.updateCar(car)) {
+                HttpSession session = request.getSession();
+                session.setAttribute("success", "Cập nhật xe thành công");
+                response.sendRedirect("car-management");
+            } else {
+                request.setAttribute("error", "Lỗi khi cập nhật xe vào cơ sở dữ liệu");
+                // Reload form data for editing
+                request.setAttribute("car", car);
+                List<CarBrand> brands = brandDAO.getAllBrands();
+                List<CarCategory> categories = categoryDAO.getAllCategories();
+                List<CarModel> models = null;
+                if (car.getModel() != null && car.getModel().getBrandId() > 0) {
+                    models = modelDAO.getModelsByBrandId(car.getModel().getBrandId());
+                }
+                request.setAttribute("brands", brands);
+                request.setAttribute("categories", categories);
+                request.setAttribute("models", models);
+                request.getRequestDispatcher("car-form.jsp").forward(request, response);
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "Lỗi: " + e.getMessage());
+            // Reload form data for editing
+            Car car = carDAO.getCarById(Integer.parseInt(request.getParameter("carId")));
+            request.setAttribute("car", car);
+            List<CarBrand> brands = brandDAO.getAllBrands();
+            List<CarCategory> categories = categoryDAO.getAllCategories();
+            List<CarModel> models = null;
+            if (car != null && car.getModel() != null && car.getModel().getBrandId() > 0) {
+                models = modelDAO.getModelsByBrandId(car.getModel().getBrandId());
+            }
+            request.setAttribute("brands", brands);
+            request.setAttribute("categories", categories);
+            request.setAttribute("models", models);
+            request.getRequestDispatcher("car-form.jsp").forward(request, response);
+        }
+    }
+
+    private void updateCarStatus(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        int carId = Integer.parseInt(request.getParameter("carId"));
+        String status = request.getParameter("status");
+        
+        if (carDAO.updateCarStatus(carId, status)) {
+            response.getWriter().write("{\"success\": true}");
+        } else {
+            response.getWriter().write("{\"success\": false}");
+        }
+    }
+
+    private void deleteCar(HttpServletRequest request, HttpServletResponse response, User user)
+            throws ServletException, IOException {
+        int carId = Integer.parseInt(request.getParameter("id"));
+        Car car = carDAO.getCarById(carId);
+        
+        if (car == null) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Không tìm thấy xe");
+            response.sendRedirect("car-management");
+            return;
+        }
+        
+        // Check ownership
+        if (user.getRoleId() != 1 && car.getOwnerId() != user.getUserId()) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Bạn không có quyền xóa xe này");
+            response.sendRedirect("car-management");
+            return;
+        }
+        
+        HttpSession session = request.getSession();
+        if (carDAO.deleteCar(carId)) {
+            session.setAttribute("success", "Xóa xe thành công");
+        } else {
+            session.setAttribute("error", "Lỗi khi xóa xe");
+        }
+        
+        response.sendRedirect("car-management");
+    }
+
+    private void verifyCar(HttpServletRequest request, HttpServletResponse response, User user)
+            throws ServletException, IOException {
+        // Only admin can verify cars
+        if (user.getRoleId() != 1) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Bạn không có quyền xác minh xe");
+            response.sendRedirect("car-management");
+            return;
+        }
+        
+        int carId = Integer.parseInt(request.getParameter("id"));
+        boolean isVerified = Boolean.parseBoolean(request.getParameter("verified"));
+        
+        HttpSession session = request.getSession();
+        if (carDAO.verifyCar(carId, isVerified)) {
+            session.setAttribute("success", "Cập nhật trạng thái xác minh thành công");
+        } else {
+            session.setAttribute("error", "Lỗi khi cập nhật trạng thái xác minh");
+        }
+        
+        response.sendRedirect("car-management");
+    }
+}
