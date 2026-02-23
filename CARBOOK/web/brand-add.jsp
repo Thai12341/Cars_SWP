@@ -18,6 +18,8 @@
         }
         .btn-save { background-color: #01d28e; border: none; color: white; }
         .btn-save:hover { background-color: #01a871; color: white; }
+        /* Style cho alert */
+        .alert { border-radius: 10px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -27,6 +29,17 @@
         <div class="form-container w-100">
             <h2 class="mb-4 text-center" style="color: #01d28e;">THÊM HÃNG XE MỚI</h2>
             
+            <%-- HIỂN THỊ THÔNG BÁO LỖI NẾU CÓ --%>
+            <c:if test="${not empty sessionScope.error}">
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Lỗi!</strong> ${sessionScope.error}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <c:remove var="error" scope="session" />
+            </c:if>
+
             <form action="brand" method="post">
                 <%-- Action ẩn để Servlet biết là đang thực hiện lệnh ADD --%>
                 <input type="hidden" name="action" value="add">
@@ -53,5 +66,8 @@
             </form>
         </div>
     </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
