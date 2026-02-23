@@ -173,7 +173,7 @@ public class CarManagementServlet extends HttpServlet {
         request.getRequestDispatcher("car-form.jsp").forward(request, response);
     }
 
-     private void viewCar(HttpServletRequest request, HttpServletResponse response)
+    private void viewCar(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         int carId = Integer.parseInt(request.getParameter("id"));
         Car car = carDAO.getCarById(carId);
