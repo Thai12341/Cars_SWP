@@ -12,13 +12,28 @@ public class DBContext {
 
     public DBContext() {
         try {
+
             String user = "sa";
             String pass = "123456";
-           String url = "jdbc:sqlserver://localhost:1433;databaseName=CRMS_DB";
+          String url = "jdbc:sqlserver://localhost:1433;databaseName=CRMS_DB;encrypt=false;trustServerCertificate=true";
+
+
+
             Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
             connection = DriverManager.getConnection(url, user, pass);
         } catch (ClassNotFoundException ex) {
             Logger.getLogger(DBContext.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SQLException ex) {
+            Logger.getLogger(DBContext.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    public void closeConnection() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+                // In ra console để bạn theo dõi lúc debug, khi xong có thể xóa dòng này
+                System.out.println(">>> Đã đóng kết nối Database thành công!");
+            }
         } catch (SQLException ex) {
             Logger.getLogger(DBContext.class.getName()).log(Level.SEVERE, null, ex);
         }
