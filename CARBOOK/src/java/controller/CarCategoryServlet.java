@@ -24,10 +24,7 @@ public class CarCategoryServlet extends HttpServlet {
         CarCategoryDAO dao = new CarCategoryDAO();
 
        
-        if (user == null || (user.getRoleId() != 1 && user.getRoleId() != 2)) {
-            response.sendRedirect("home");
-            return;
-        }
+      
 
         if (action == null || "list".equals(action)) {
             request.setAttribute("categories", dao.getAllCategories());
