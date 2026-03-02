@@ -107,4 +107,31 @@ public class CarBrandDAO extends DBContext {
         brand.setCreatedAt(rs.getTimestamp("CreatedAt")); 
         return brand;
     }
+
+public List<CarBrand> searchByName(String name) {
+    List<CarBrand> brands = new ArrayList<>();
+    String sql = "SELECT * FROM CarBrands WHERE BrandName LIKE ? ORDER BY BrandName";
+    try (PreparedStatement stm = connection.prepareStatement(sql)) {
+        stm.setString(1, "%" + name + "%");
+        ResultSet rs = stm.executeQuery();
+        while (rs.next()) {
+            brands.add(extractBrandFromResultSet(rs));
+        }
+    } catch (SQLException e) { e.printStackTrace(); }
+    return brands;
+}
+
+
+public List<CarBrand> searchByCountry(String country) {
+    List<CarBrand> brands = new ArrayList<>();
+    String sql = "SELECT * FROM CarBrands WHERE Country LIKE ? ORDER BY BrandName";
+    try (PreparedStatement stm = connection.prepareStatement(sql)) {
+        stm.setString(1, "%" + country + "%");
+        ResultSet rs = stm.executeQuery();
+        while (rs.next()) {
+            brands.add(extractBrandFromResultSet(rs));
+        }
+    } catch (SQLException e) { e.printStackTrace(); }
+    return brands;
+}
 }
