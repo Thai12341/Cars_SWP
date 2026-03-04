@@ -16,12 +16,11 @@ import jakarta.servlet.http.HttpSession;
 import java.time.LocalDate;
 import java.util.List;
 
-
 @WebServlet(name = "CarModelServlet", urlPatterns = {"/car-models"})
 public class CarModelServlet extends HttpServlet {
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) 
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         CarModelDAO modelDAO = new CarModelDAO();
         CarBrandDAO brandDAO = new CarBrandDAO();
@@ -37,33 +36,28 @@ public class CarModelServlet extends HttpServlet {
                 try {
                     int brandId = Integer.parseInt(request.getParameter("brandId"));
                     List<CarModel> list = modelDAO.getModelsByBrandId(brandId);
-                    
+
                     Gson gson = new Gson();
                     String json = gson.toJson(list);
-                    
+
                     PrintWriter out = response.getWriter();
                     out.print(json);
                     out.flush();
                 } catch (Exception e) {
                     response.getWriter().print("[]");
                 }
-                return; 
+                return;
             }
-          
-
-            
 
             if ("add".equals(action)) {
                 request.setAttribute("brands", brandDAO.getAllBrands());
                 request.getRequestDispatcher("/model-add.jsp").forward(request, response);
-            } 
-            else if ("edit".equals(action)) {
+            } else if ("edit".equals(action)) {
                 int id = Integer.parseInt(request.getParameter("id"));
                 request.setAttribute("model", modelDAO.getModelById(id));
                 request.setAttribute("brands", brandDAO.getAllBrands());
                 request.getRequestDispatcher("/model-edit.jsp").forward(request, response);
-            } 
-            else if ("delete".equals(action)) {
+            } else if ("delete".equals(action)) {
                 int id = Integer.parseInt(request.getParameter("id"));
                 if (modelDAO.deleteModel(id)) {
                     session.setAttribute("success", "Xóa dòng xe thành công!");
@@ -71,11 +65,58 @@ public class CarModelServlet extends HttpServlet {
                     session.setAttribute("error", "Xóa thất bại!");
                 }
                 response.sendRedirect("car-models");
-            } 
-            else {
-                request.setAttribute("models", modelDAO.getAllModels());
-                request.getRequestDispatcher("/model-list.jsp").forward(request, response);
+            } else {
+    String brandName = request.getParameter("brandName");
+    String modelName = request.getParameter("modelName");
+    String yearRaw = request.getParameter("year");
+
+    List<CarModel> list = modelDAO.getAllModels();
+    if ((brandName == null || brandName.trim().isEmpty()) &&
+        (modelName == null || modelName.trim().isEmpty()) &&
+        (yearRaw == null || yearRaw.trim().isEmpty())) {
+
+        request.setAttribute("models", list);
+        request.getRequestDispatcher("/model-list.jsp").forward(request, response);
+        return;
+    }
+
+    List<CarModel> filtered = new java.util.ArrayList<>();
+
+    Integer year = null;
+    if (yearRaw != null && !yearRaw.trim().isEmpty()) {
+        year = Integer.parseInt(yearRaw);
+    }
+
+    for (CarModel m : list) {
+        boolean match = true;
+        if (brandName != null && !brandName.trim().isEmpty()) {
+            if (m.getBrand() == null ||
+                !m.getBrand().getBrandName().toLowerCase()
+                        .contains(brandName.toLowerCase())) {
+                match = false;
             }
+        }
+
+        if (modelName != null && !modelName.trim().isEmpty()) {
+            if (!m.getModelName().toLowerCase()
+                    .contains(modelName.toLowerCase())) {
+                match = false;
+            }
+        }
+
+        if (year != null) {
+            if (m.getYear() != year) {
+                match = false;
+            }
+        }
+        if (match) {
+            filtered.add(m);
+        }
+    }
+
+    request.setAttribute("models", filtered);
+    request.getRequestDispatcher("/model-list.jsp").forward(request, response);
+}
         } finally {
             modelDAO.closeConnection();
             brandDAO.closeConnection();
@@ -83,12 +124,12 @@ public class CarModelServlet extends HttpServlet {
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) 
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         CarModelDAO modelDAO = new CarModelDAO();
         CarBrandDAO brandDAO = new CarBrandDAO();
         HttpSession session = request.getSession();
-        
+
         int currentYear = LocalDate.now().getYear();
 
         try {
@@ -100,7 +141,7 @@ public class CarModelServlet extends HttpServlet {
             if (year > currentYear) {
                 request.setAttribute("error", "Năm sản xuất (" + year + ") không được lớn hơn năm hiện tại (" + currentYear + ")");
                 request.setAttribute("brands", brandDAO.getAllBrands());
-                
+
                 if ("create".equals(action)) {
                     request.getRequestDispatcher("/model-add.jsp").forward(request, response);
                 } else {
@@ -108,7 +149,7 @@ public class CarModelServlet extends HttpServlet {
                     request.setAttribute("model", modelDAO.getModelById(modelId));
                     request.getRequestDispatcher("/model-edit.jsp").forward(request, response);
                 }
-                return; 
+                return;
             }
 
             if ("create".equals(action)) {
@@ -116,8 +157,7 @@ public class CarModelServlet extends HttpServlet {
                 if (modelDAO.createModel(m)) {
                     session.setAttribute("success", "Thêm dòng xe mới thành công!");
                 }
-            } 
-            else if ("update".equals(action)) {
+            } else if ("update".equals(action)) {
                 int id = Integer.parseInt(request.getParameter("modelId"));
                 CarModel m = new CarModel(id, brandId, name, year);
                 if (modelDAO.updateModel(m)) {
@@ -125,7 +165,7 @@ public class CarModelServlet extends HttpServlet {
                 }
             }
             response.sendRedirect("car-models");
-            
+
         } catch (Exception e) {
             session.setAttribute("error", "Lỗi: " + e.getMessage());
             response.sendRedirect("car-models");
