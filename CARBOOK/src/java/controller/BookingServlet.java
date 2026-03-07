@@ -3,9 +3,13 @@ package controller;
 import dal.BookingDAO;
 import dal.CarDAO;
 import dal.PaymentDAO;
+import dal.NotificationDAO;
+import dal.ReviewDAO;
 import model.Booking;
 import model.Car;
 import model.User;
+import model.Notification;
+import model.Review;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -28,6 +32,8 @@ public class BookingServlet extends HttpServlet {
     private BookingDAO bookingDAO = new BookingDAO();
     private CarDAO carDAO = new CarDAO();
     private PaymentDAO paymentDAO = new PaymentDAO();
+    private NotificationDAO notificationDAO = new NotificationDAO();
+    private ReviewDAO reviewDAO = new ReviewDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -134,11 +140,20 @@ public class BookingServlet extends HttpServlet {
                 return;
             }
             
+            // Log detailed car status for debugging
+            System.out.println("Car Status: [" + car.getStatus() + "]");
+            System.out.println("Car Status Length: " + (car.getStatus() != null ? car.getStatus().length() : "null"));
+            System.out.println("Car Status equals 'Available': " + "Available".equals(car.getStatus()));
+            System.out.println("Car Status trimmed equals 'Available': " + (car.getStatus() != null && car.getStatus().trim().equals("Available")));
+            
             if (!"Available".equals(car.getStatus())) {
-                request.getSession().setAttribute("error", "Xe không khả dụng");
+                System.out.println("Car is NOT available - Status: [" + car.getStatus() + "]");
+                request.getSession().setAttribute("error", "Xe không khả dụng (Status: " + car.getStatus() + ")");
                 response.sendRedirect("cars");
                 return;
             }
+            
+            System.out.println("Car is available - proceeding with booking form");
             
             // Forward search parameters to booking form
             String pickupLocation = request.getParameter("pickupLocation");
@@ -256,7 +271,23 @@ public class BookingServlet extends HttpServlet {
             
             if (bookingId > 0) {
                 // Update car status
-                carDAO.updateCarStatus(carId, "Booked");
+                System.out.println("Updating car status to 'Booked' for car ID: " + carId);
+                boolean statusUpdated = carDAO.updateCarStatus(carId, "Booked");
+                System.out.println("Car status update result: " + statusUpdated);
+                
+                // Tạo thông báo cho car owner (nếu có)
+                if (car.getOwnerId() > 0) {
+                    Notification ownerNotification = new Notification();
+                    ownerNotification.setUserId(car.getOwnerId());
+                    ownerNotification.setType("new_booking");
+                    ownerNotification.setTitle("Có đơn đặt xe mới");
+                    ownerNotification.setMessage("Xe " + car.getLicensePlate() + " có đơn đặt mới (Mã: " + booking.getBookingReference() + "). Vui lòng xem xét và duyệt.");
+                    ownerNotification.setRelatedEntityType("Booking");
+                    ownerNotification.setRelatedEntityId(bookingId);
+                    notificationDAO.createNotification(ownerNotification);
+                    
+                    System.out.println("Notification sent to car owner " + car.getOwnerId() + " for new booking " + bookingId);
+                }
                 
                 System.out.println("Booking created successfully!");
                 request.getSession().setAttribute("success", "Đặt xe thành công! Mã đặt xe: " + booking.getBookingReference());
@@ -289,8 +320,12 @@ public class BookingServlet extends HttpServlet {
         
         Car car = carDAO.getCarById(booking.getCarId());
         
+        // Check if this booking has a review
+        Review existingReview = reviewDAO.getReviewByBookingId(bookingId);
+        
         request.setAttribute("booking", booking);
         request.setAttribute("car", car);
+        request.setAttribute("existingReview", existingReview);
         request.getRequestDispatcher("booking-detail.jsp").forward(request, response);
     }
 
@@ -304,8 +339,20 @@ public class BookingServlet extends HttpServlet {
         }
         
         int bookingId = Integer.parseInt(request.getParameter("id"));
+        Booking booking = bookingDAO.getBookingById(bookingId);
         
         if (bookingDAO.approveBooking(bookingId, user.getUserId())) {
+            // Tạo thông báo cho khách hàng
+            Notification notification = new Notification();
+            notification.setUserId(booking.getCustomerId());
+            notification.setType("booking_approved");
+            notification.setTitle("Đơn đặt xe đã được duyệt");
+            notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã được duyệt. Vui lòng thanh toán để hoàn tất đặt xe.");
+            notification.setRelatedEntityType("Booking");
+            notification.setRelatedEntityId(bookingId);
+            notificationDAO.createNotification(notification);
+            
+            System.out.println("Notification sent to customer " + booking.getCustomerId() + " for approved booking " + bookingId);
             request.setAttribute("success", "Đã duyệt đặt xe");
         } else {
             request.setAttribute("error", "Lỗi khi duyệt đặt xe");
@@ -334,7 +381,21 @@ public class BookingServlet extends HttpServlet {
         
         if (bookingDAO.rejectBooking(bookingId, reason)) {
             // Set car back to available
-            carDAO.updateCarStatus(booking.getCarId(), "Available");
+            System.out.println("Rejecting booking - Setting car " + booking.getCarId() + " back to Available");
+            boolean statusUpdated = carDAO.updateCarStatus(booking.getCarId(), "Available");
+            System.out.println("Car status update result: " + statusUpdated);
+            
+            // Tạo thông báo cho khách hàng
+            Notification notification = new Notification();
+            notification.setUserId(booking.getCustomerId());
+            notification.setType("booking_rejected");
+            notification.setTitle("Đơn đặt xe đã bị từ chối");
+            notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã bị từ chối. Lý do: " + reason);
+            notification.setRelatedEntityType("Booking");
+            notification.setRelatedEntityId(bookingId);
+            notificationDAO.createNotification(notification);
+            
+            System.out.println("Notification sent to customer " + booking.getCustomerId() + " for rejected booking " + bookingId);
             request.setAttribute("success", "Đã từ chối đặt xe");
         } else {
             request.setAttribute("error", "Lỗi khi từ chối đặt xe");
@@ -368,7 +429,23 @@ public class BookingServlet extends HttpServlet {
         
         if (bookingDAO.cancelBooking(bookingId, user.getUserId(), reason)) {
             // Set car back to available
-            carDAO.updateCarStatus(booking.getCarId(), "Available");
+            System.out.println("Cancelling booking - Setting car " + booking.getCarId() + " back to Available");
+            boolean statusUpdated = carDAO.updateCarStatus(booking.getCarId(), "Available");
+            System.out.println("Car status update result: " + statusUpdated);
+            
+            // Tạo thông báo cho khách hàng (nếu admin hủy)
+            if (user.getUserId() != booking.getCustomerId()) {
+                Notification notification = new Notification();
+                notification.setUserId(booking.getCustomerId());
+                notification.setType("booking_cancelled");
+                notification.setTitle("Đơn đặt xe đã bị hủy");
+                notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã bị hủy. Lý do: " + reason);
+                notification.setRelatedEntityType("Booking");
+                notification.setRelatedEntityId(bookingId);
+                notificationDAO.createNotification(notification);
+                
+                System.out.println("Notification sent to customer " + booking.getCustomerId() + " for cancelled booking " + bookingId);
+            }
             request.setAttribute("success", "Đã hủy đặt xe");
         } else {
             request.setAttribute("error", "Lỗi khi hủy đặt xe");
@@ -391,7 +468,21 @@ public class BookingServlet extends HttpServlet {
         
         if (bookingDAO.completeBooking(bookingId)) {
             // Set car back to available
-            carDAO.updateCarStatus(booking.getCarId(), "Available");
+            System.out.println("Completing booking - Setting car " + booking.getCarId() + " back to Available");
+            boolean statusUpdated = carDAO.updateCarStatus(booking.getCarId(), "Available");
+            System.out.println("Car status update result: " + statusUpdated);
+            
+            // Tạo thông báo cho khách hàng
+            Notification notification = new Notification();
+            notification.setUserId(booking.getCustomerId());
+            notification.setType("booking_completed");
+            notification.setTitle("Đơn đặt xe đã hoàn thành");
+            notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ! Bạn có thể đánh giá trải nghiệm của mình.");
+            notification.setRelatedEntityType("Booking");
+            notification.setRelatedEntityId(bookingId);
+            notificationDAO.createNotification(notification);
+            
+            System.out.println("Notification sent to customer " + booking.getCustomerId() + " for completed booking " + bookingId);
             request.setAttribute("success", "Đã hoàn thành đặt xe");
         } else {
             request.setAttribute("error", "Lỗi khi hoàn thành đặt xe");
