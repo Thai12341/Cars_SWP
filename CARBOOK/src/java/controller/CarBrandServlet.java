@@ -111,43 +111,58 @@ public class CarBrandServlet extends HttpServlet {
     request.getRequestDispatcher("/brand-list.jsp").forward(request, response);
     }
 
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        HttpSession session = request.getSession();
-        String action = request.getParameter("action");
-        CarBrandDAO dao = new CarBrandDAO();
-        
-        String name = request.getParameter("brandName");
-        String country = request.getParameter("country");
-        String logo = request.getParameter("logoURL");
+   @Override
+protected void doPost(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+    HttpSession session = request.getSession();
+    String action = request.getParameter("action");
+    CarBrandDAO dao = new CarBrandDAO();
+    String name = request.getParameter("brandName") != null ? request.getParameter("brandName").trim() : "";
+    String country = request.getParameter("country");
+    String logo = request.getParameter("logoURL");
 
-        CarBrand b = new CarBrand();
-        b.setBrandName(name);
-        b.setCountry(country);
-        b.setLogoURL(logo);
+    CarBrand b = new CarBrand();
+    b.setBrandName(name);
+    b.setCountry(country);
+    b.setLogoURL(logo);
 
-        if ("add".equals(action)) {
-            if (dao.createBrand(b)) {
-                session.setAttribute("success", "Thêm hãng xe mới thành công!");
-            } else {
-                session.setAttribute("error", "Thêm hãng xe thất bại!");
-            }
-        } 
-        else if ("edit".equals(action)) {
-            try {
-                int brandId = Integer.parseInt(request.getParameter("brandId"));
-                b.setBrandId(brandId);
-                if (dao.updateBrand(b)) {
-                    session.setAttribute("success", "Cập nhật thông tin thành công!");
-                } else {
-                    session.setAttribute("error", "Cập nhật thất bại!");
-                }
-            } catch (Exception e) {
-                session.setAttribute("error", "Dữ liệu không hợp lệ!");
-            }
+    if ("add".equals(action)) {
+        //  Check trùng tên cho ADD
+        if (dao.isBrandNameExists(name)) {
+            session.setAttribute("error", "Tên hãng xe '" + name + "' đã tồn tại!");
+            response.sendRedirect("brand?action=add"); 
+            return; 
         }
-        
-        response.sendRedirect("brand?action=list");
+
+        if (dao.createBrand(b)) {
+            session.setAttribute("success", "Thêm hãng xe mới thành công!");
+        } else {
+            session.setAttribute("error", "Thêm hãng xe thất bại!");
+        }
+    } 
+    else if ("edit".equals(action)) {
+        try {
+            int brandId = Integer.parseInt(request.getParameter("brandId"));
+            b.setBrandId(brandId);
+
+            //Check trùng tên cho EDIT 
+            if (dao.isBrandNameExists(name, brandId)) {
+                session.setAttribute("error", "Tên hãng xe mới bị trùng với hãng khác!");
+                response.sendRedirect("brand?action=edit&id=" + brandId);
+                return;
+            }
+
+            if (dao.updateBrand(b)) {
+                session.setAttribute("success", "Cập nhật thông tin thành công!");
+            } else {
+                session.setAttribute("error", "Cập nhật thất bại!");
+            }
+        } catch (Exception e) {
+            session.setAttribute("error", "Dữ liệu không hợp lệ!");
+        }
     }
+
+    
+    response.sendRedirect("brand?action=list");
+}
 }
