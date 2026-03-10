@@ -214,6 +214,48 @@ public List<CarModel> searchByBrandName(String brandName) {
 
     return list;
 }
+   
+   /**
+ * Kiểm tra trùng lặp cho trường hợp THÊM MỚI (Add)
+ */
+public boolean isModelDuplicate(int brandId, String modelName, int year) {
+    String sql = "SELECT COUNT(*) FROM CarModels WHERE BrandID = ? AND ModelName = ? AND [Year] = ?";
+    try (PreparedStatement stm = connection.prepareStatement(sql)) {
+        stm.setInt(1, brandId);
+        stm.setString(2, modelName.trim());
+        stm.setInt(3, year);
+        try (ResultSet rs = stm.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        }
+    } catch (SQLException e) {
+        System.err.println("Error isModelDuplicate (Add): " + e.getMessage());
+    }
+    return false;
+}
+
+/**
+ * Kiểm tra trùng lặp cho trường hợp CẬP NHẬT (Edit)
+ * Loại trừ chính ID hiện tại để người dùng có thể giữ nguyên dữ liệu cũ
+ */
+public boolean isModelDuplicate(int brandId, String modelName, int year, int excludeModelId) {
+    String sql = "SELECT COUNT(*) FROM CarModels WHERE BrandID = ? AND ModelName = ? AND [Year] = ? AND ModelID != ?";
+    try (PreparedStatement stm = connection.prepareStatement(sql)) {
+        stm.setInt(1, brandId);
+        stm.setString(2, modelName.trim());
+        stm.setInt(3, year);
+        stm.setInt(4, excludeModelId);
+        try (ResultSet rs = stm.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        }
+    } catch (SQLException e) {
+        System.err.println("Error isModelDuplicate (Edit): " + e.getMessage());
+    }
+    return false;
+}
 
     public void closeConnection() {
         try {
