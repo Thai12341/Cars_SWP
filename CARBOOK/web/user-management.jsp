@@ -148,6 +148,11 @@
                     </tbody>
                 </table>
             </div>
+                    <div class="d-flex justify-content-end mt-5 mb-3">
+            <a href="home" class="btn btn-outline-success px-4 py-2 shadow-sm">
+                <i class="ion-ios-home mr-2"></i> Về trang chủ
+            </a>
+        </div>
         </div>
     </div>
 </div>
