@@ -14,12 +14,11 @@ import java.util.Map;
 @WebFilter("/*") 
 public class AuthorizationFilter implements Filter {
 
-    // Danh sách cấu hình: URL nào cần Quyền (PermissionKey) gì trong DB
+   //key/value
     private static final Map<String, String> config = new HashMap<>();
 
     static {
-        // Bạn cấu hình những trang muốn chặn vào đây
-        // Ví dụ: Trang quản lý role cần quyền MANAGE_ROLES
+        
         config.put("/role-management", "MANAGE_ROLES");
         config.put("/users", "MANAGE_USERS");
         config.put("/booking", "CUSTOMER_ACCESS");
