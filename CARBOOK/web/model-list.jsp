@@ -28,6 +28,9 @@
         <div class="table-container">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2 class="header-title m-0">DANH SÁCH DÒNG XE</h2>
+                <a href="car-models" class="btn btn-outline-secondary px-4">
+                                      
+                           Reset         </a>
                 <a href="car-models?action=add" class="btn btn-add shadow-sm">+ Thêm Dòng Xe</a>
             </div>
 
