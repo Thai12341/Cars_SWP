@@ -15,7 +15,7 @@ import jakarta.servlet.http.HttpSession;
 /**
  * NotificationServlet - Handles notification operations
  */
-@WebServlet(name = "NotificationServlet", urlPatterns = {"/notifications"})
+@WebServlet(name = "NotificationServlet", urlPatterns = {"/notification", "/notifications"})
 public class NotificationServlet extends HttpServlet {
 
     private NotificationDAO notificationDAO = new NotificationDAO();
@@ -111,6 +111,9 @@ public class NotificationServlet extends HttpServlet {
         }
         
         if (notificationDAO.markAsRead(notificationId)) {
+            // Update unread count in session
+            updateUnreadCountInSession(request, user);
+            
             String redirectUrl = request.getParameter("redirect");
             if (redirectUrl != null && !redirectUrl.isEmpty()) {
                 response.sendRedirect(redirectUrl);
@@ -125,6 +128,8 @@ public class NotificationServlet extends HttpServlet {
     private void markAllAsRead(HttpServletRequest request, HttpServletResponse response, User user)
             throws ServletException, IOException {
         if (notificationDAO.markAllAsRead(user.getUserId())) {
+            // Update unread count in session (should be 0 now)
+            updateUnreadCountInSession(request, user);
             request.setAttribute("success", "Đã đánh dấu tất cả thông báo là đã đọc");
         } else {
             request.setAttribute("error", "Lỗi khi đánh dấu thông báo");
@@ -189,6 +194,20 @@ public class NotificationServlet extends HttpServlet {
             }
         } catch (Exception e) {
             response.getWriter().write("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
+        }
+    }
+    
+    /**
+     * Helper method to update unread count in session
+     */
+    private void updateUnreadCountInSession(HttpServletRequest request, User user) {
+        try {
+            int unreadCount = notificationDAO.getUnreadCount(user.getUserId());
+            HttpSession session = request.getSession();
+            session.setAttribute("unreadCount", unreadCount);
+            request.setAttribute("unreadCount", unreadCount);
+        } catch (Exception e) {
+            System.err.println("Error updating unread count: " + e.getMessage());
         }
     }
 }
