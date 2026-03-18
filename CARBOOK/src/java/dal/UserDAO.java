@@ -618,9 +618,7 @@ public void insertGoogleUser(User u) {
     }
 }
 
-/**
- * Cập nhật vai trò (RoleID) cho người dùng
- */
+
 public boolean updateUserRole(int userId, int roleId) {
     String sql = "UPDATE Users SET RoleID = ?, UpdatedAt = GETDATE() WHERE UserID = ?";
     try {
@@ -633,7 +631,37 @@ public boolean updateUserRole(int userId, int roleId) {
         return false;
     }
 }
- 
+
+
+
+//check phone exist
+public boolean isPhoneNumberExists(String phoneNumber) {
+    String sql = "SELECT COUNT(*) FROM Users WHERE PhoneNumber = ?";
+    try {
+        PreparedStatement stm = connection.prepareStatement(sql);
+        stm.setString(1, phoneNumber);
+        ResultSet rs = stm.executeQuery();
+        if (rs.next()) return rs.getInt(1) > 0;
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+    return false;
+}
+
+// check blx 
+public boolean isDriverLicenseExists(String licenseNumber) {
+    if (licenseNumber == null || licenseNumber.trim().isEmpty()) return false;
+    String sql = "SELECT COUNT(*) FROM Users WHERE DriverLicenseNumber = ?";
+    try {
+        PreparedStatement stm = connection.prepareStatement(sql);
+        stm.setString(1, licenseNumber);
+        ResultSet rs = stm.executeQuery();
+        if (rs.next()) return rs.getInt(1) > 0;
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+    return false;
+}
 
 
 
