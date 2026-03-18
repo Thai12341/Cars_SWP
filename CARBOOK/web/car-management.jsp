@@ -21,9 +21,9 @@
                     <h2>Quản lý xe</h2>
                 </div>
                 <div class="col-md-6 text-right">
-                    <button class="btn btn-primary" data-toggle="modal" data-target="#carModal" onclick="resetCarForm()">
+                    <a href="car-management?action=create" class="btn btn-primary">
                         <i class="ion-plus"></i> Thêm xe mới
-                    </button>
+                    </a>
                 </div>
             </div>
             
