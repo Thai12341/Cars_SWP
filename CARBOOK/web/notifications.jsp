@@ -9,6 +9,7 @@
     <title>Thông báo - CarBook</title>
     <link href="https://fonts.googleapis.com/css?family=Poppins:200,300,400,500,600,700,800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/ionicons.min.css">
     <link rel="stylesheet" href="css/style.css">
     <style>
         .notification-item {
@@ -57,10 +58,10 @@
                         <c:otherwise>
                             <div class="list-group list-group-flush">
                                 <c:forEach var="notification" items="${notifications}">
-                                    <div class="list-group-item notification-item ${notification.isRead ? '' : 'unread'}" onclick="markAsRead(${notification.notificationId})">
+                                    <div class="list-group-item notification-item ${notification.read ? '' : 'unread'}" onclick="markAsRead(${notification.notificationId})">
                                         <div class="d-flex w-100 justify-content-between">
                                             <h6 class="mb-1">
-                                                <c:if test="${!notification.isRead}">
+                                                <c:if test="${!notification.read}">
                                                     <span class="badge badge-primary">Mới</span>
                                                 </c:if>
                                                 ${notification.title}
@@ -68,9 +69,6 @@
                                             <small><fmt:formatDate value="${notification.createdAt}" pattern="dd/MM/yyyy HH:mm"/></small>
                                         </div>
                                         <p class="mb-1">${notification.message}</p>
-                                        <c:if test="${not empty notification.linkUrl}">
-                                            <a href="${notification.linkUrl}" class="btn btn-sm btn-link p-0">Xem chi tiết →</a>
-                                        </c:if>
                                     </div>
                                 </c:forEach>
                             </div>
@@ -98,8 +96,24 @@
     
     <%@ include file="includes/footer.jsp" %>
     
-    <script src="js/jquery.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
+       <script src="js/jquery.min.js"></script>
+  <script src="js/jquery-migrate-3.0.1.min.js"></script>
+  <script src="js/popper.min.js"></script>
+  <script src="js/bootstrap.min.js"></script>
+  <script src="js/jquery.easing.1.3.js"></script>
+  <script src="js/jquery.waypoints.min.js"></script>
+  <script src="js/jquery.stellar.min.js"></script>
+  <script src="js/owl.carousel.min.js"></script>
+  <script src="js/jquery.magnific-popup.min.js"></script>
+  <script src="js/aos.js"></script>
+  <script src="js/jquery.animateNumber.min.js"></script>
+  <script src="js/bootstrap-datepicker.js"></script>
+  <script src="js/jquery.timepicker.min.js"></script>
+  <script src="js/scrollax.min.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBVWaKrjvy3MaE7SQ74_uJiULgl1JY0H2s&sensor=false"></script>
+  <script src="js/google-map.js"></script>
+  <script src="js/main.js"></script>
+
     <script>
         function markAsRead(notificationId) {
             fetch('notification?action=markRead&id=' + notificationId, {
