@@ -1,6 +1,5 @@
 package controller;
 
-import com.google.gson.Gson;
 import dal.CarModelDAO;
 import dal.CarBrandDAO;
 import model.CarModel;
@@ -15,6 +14,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.time.LocalDate;
 import java.util.List;
+
+import com.google.gson.Gson; // Đảm bảo bạn đã add thư viện GSON vào Project
+
 
 @WebServlet(name = "CarModelServlet", urlPatterns = {"/car-models"})
 public class CarModelServlet extends HttpServlet {
