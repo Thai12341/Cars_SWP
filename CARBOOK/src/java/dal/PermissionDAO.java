@@ -47,10 +47,10 @@ public class PermissionDAO extends DBContext {
         return permissions;
     }
 
-    // Test nhanh xem hàm chạy đúng không
+    // Test 
     public static void main(String[] args) {
         PermissionDAO dao = new PermissionDAO();
-        // Giả sử Role Admin của bạn có ID là 1
+        
         List<String> list = dao.getPermissionsByRoleId(1);
         System.out.println("Danh sách quyền của Role 1: " + list);
     }
