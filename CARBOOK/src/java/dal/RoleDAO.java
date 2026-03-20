@@ -172,6 +172,40 @@ public class RoleDAO extends DBContext {
     }
     return false; // chưa tồn tại
 }
+ 
+public boolean checkRoleNameExistsUpdate(String roleName, int roleId) {
+    // Tìm Role có tên trùng nhưng ID phải khác ID hiện tại
+    String sql = "SELECT * FROM Roles WHERE RoleName = ? AND RoleID <> ?";
+    try {
+        PreparedStatement ps = connection.prepareStatement(sql);
+        ps.setString(1, roleName);
+        ps.setInt(2, roleId);
+        ResultSet rs = ps.executeQuery();
+        if (rs.next()) {
+            return true; // Trùng tên với một Role khác
+        }
+    } catch (SQLException e) {
+        System.out.println("Error checkRoleNameExistsUpdate: " + e.getMessage());
+    }
+    return false; 
+}
+
+
+public boolean isRoleInUse(int roleId) {
+    String sql = "SELECT COUNT(*) FROM Users WHERE RoleID = ?";
+    try {
+        PreparedStatement ps = connection.prepareStatement(sql);
+        ps.setInt(1, roleId);
+        ResultSet rs = ps.executeQuery();
+        if (rs.next()) {
+            return rs.getInt(1) > 0; 
+        }
+    } catch (SQLException e) {
+        System.out.println("Error checking isRoleInUse: " + e.getMessage());
+    }
+    return false;
+}
+        
     
     /**
      * Extract Role object from ResultSet
