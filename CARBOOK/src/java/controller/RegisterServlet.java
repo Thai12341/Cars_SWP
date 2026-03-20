@@ -29,7 +29,7 @@ public class RegisterServlet extends HttpServlet {
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
         
-        // Lấy tham số từ Form
+       
         String username = request.getParameter("username");
         String email = request.getParameter("email");
         String password = request.getParameter("password");
@@ -43,7 +43,7 @@ public class RegisterServlet extends HttpServlet {
         
         UserDAO userDAO = new UserDAO();
 
-        // 1. Validate 
+       
         if (username == null || username.trim().isEmpty() ||
             email == null || email.trim().isEmpty() ||
             password == null || password.isEmpty() ||
