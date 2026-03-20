@@ -126,23 +126,28 @@ public class RoleManagementServlet extends HttpServlet {
 }
  
 
-  private void updateRole(HttpServletRequest request, HttpServletResponse response)
+ private void updateRole(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
 
     try {
         int roleId = Integer.parseInt(request.getParameter("roleId"));
-        String roleName = request.getParameter("roleName");
+        String roleName = request.getParameter("roleName").trim(); 
         String description = request.getParameter("description");
 
-        Role role = new Role();
-        role.setRoleId(roleId);
-        role.setRoleName(roleName);
-        role.setDescription(description);
-
-        if (roleDAO.updateRole(role)) {
-            request.getSession().setAttribute("success", "Cập nhật vai trò thành công!");
+        if (roleDAO.checkRoleNameExistsUpdate(roleName, roleId)) {
+            request.getSession().setAttribute("error", "Tên vai trò '" + roleName + "' đã tồn tại trong hệ thống!");
         } else {
-            request.getSession().setAttribute("error", "Lỗi khi cập nhật vai trò!");
+            
+            Role role = new Role();
+            role.setRoleId(roleId);
+            role.setRoleName(roleName);
+            role.setDescription(description);
+
+            if (roleDAO.updateRole(role)) {
+                request.getSession().setAttribute("success", "Cập nhật vai trò thành công!");
+            } else {
+                request.getSession().setAttribute("error", "Lỗi khi cập nhật vai trò!");
+            }
         }
 
         response.sendRedirect("role-management");
@@ -156,18 +161,27 @@ public class RoleManagementServlet extends HttpServlet {
 private void deleteRole(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
 
-    int roleId = Integer.parseInt(request.getParameter("id"));
+    try {
+        int roleId = Integer.parseInt(request.getParameter("id"));
 
-    if (roleId <= 4) {
-        request.getSession().setAttribute("error", "Không thể xóa vai trò hệ thống");
-        response.sendRedirect("role-management");
-        return;
-    }
-
-    if (roleDAO.deleteRole(roleId)) {
-        request.getSession().setAttribute("success", "Xóa vai trò thành công");
-    } else {
-        request.getSession().setAttribute("error", "Lỗi khi xóa vai trò");
+   
+        if (roleId <= 4) {
+            request.getSession().setAttribute("error", "Không thể xóa vai trò hệ thống mặc định!");
+        } 
+       
+        else if (roleDAO.isRoleInUse(roleId)) {
+            request.getSession().setAttribute("error", "Không thể xóa! Hiện đang có người dùng thuộc vai trò này.");
+        } 
+      
+        else {
+            if (roleDAO.deleteRole(roleId)) {
+                request.getSession().setAttribute("success", "Xóa vai trò thành công");
+            } else {
+                request.getSession().setAttribute("error", "Lỗi hệ thống khi xóa vai trò");
+            }
+        }
+    } catch (Exception e) {
+        request.getSession().setAttribute("error", "ID không hợp lệ!");
     }
 
     response.sendRedirect("role-management");
