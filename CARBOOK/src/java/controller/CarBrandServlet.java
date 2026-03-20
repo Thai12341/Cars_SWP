@@ -83,16 +83,16 @@ public class CarBrandServlet extends HttpServlet {
                 return;
             }
         } 
-        // --- ĐOẠN NÀY ĐÃ ĐƯỢC FIX ĐÚNG TÊN HÀM TRONG DAO ---
+       
         else if ("delete".equals(action)) {
             try {
                 int id = Integer.parseInt(request.getParameter("id"));
                 
-                // GỌI ĐÚNG HÀM hasModels TRONG DAO CỦA BẠN
+              //check trung ten
                 if (dao.hasModels(id)) {
                     session.setAttribute("error", "Không thể xóa! Hãng xe này hiện đang có các Model liên kết. Hãy xóa các Model trước!");
                 } else {
-                    // Nếu không có Model thì mới thực hiện xóa
+                    
                     if (dao.deleteBrand(id)) {
                         session.setAttribute("success", "Xóa hãng xe thành công!");
                     } else {
@@ -127,7 +127,7 @@ protected void doPost(HttpServletRequest request, HttpServletResponse response)
     b.setLogoURL(logo);
 
     if ("add".equals(action)) {
-        //  Check trùng tên cho ADD
+        
         if (dao.isBrandNameExists(name)) {
             session.setAttribute("error", "Tên hãng xe '" + name + "' đã tồn tại!");
             response.sendRedirect("brand?action=add"); 
@@ -145,7 +145,7 @@ protected void doPost(HttpServletRequest request, HttpServletResponse response)
             int brandId = Integer.parseInt(request.getParameter("brandId"));
             b.setBrandId(brandId);
 
-            //Check trùng tên cho EDIT 
+            
             if (dao.isBrandNameExists(name, brandId)) {
                 session.setAttribute("error", "Tên hãng xe mới bị trùng với hãng khác!");
                 response.sendRedirect("brand?action=edit&id=" + brandId);
