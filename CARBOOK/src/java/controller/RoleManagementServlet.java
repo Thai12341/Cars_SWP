@@ -26,7 +26,7 @@ public class RoleManagementServlet extends HttpServlet {
         HttpSession session = request.getSession();
         User user = (User) session.getAttribute("user");
         
-        // Only admin can access
+     
         if (user == null || user.getRoleId() != 1) {
             response.sendRedirect("login");
             return;
