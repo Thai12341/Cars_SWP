@@ -56,12 +56,12 @@ public class LoginServlet extends HttpServlet {
                     user = dao.getUserByGoogleId(googleId);
                 }
 
-                // 3. NẠP QUYỀN CHO GOOGLE LOGIN
+               
                 PermissionDAO pDao = new PermissionDAO();
                 List<String> userPermissions = pDao.getPermissionsByRoleId(user.getRoleId());
 
                 session.setAttribute("user", user);
-                session.setAttribute("userPermissions", userPermissions); // Quan trọng cho Filter
+                session.setAttribute("userPermissions", userPermissions); 
                 session.setAttribute("userId", user.getUserId());
                 session.setAttribute("username", user.getUsername());
                 session.setAttribute("fullName", user.getFullName());
@@ -104,13 +104,13 @@ public class LoginServlet extends HttpServlet {
             request.setAttribute("error", "Tài khoản đã bị khóa. Vui lòng liên hệ admin");
             request.getRequestDispatcher("login.jsp").forward(request, response);
         } else {
-            // 4. NẠP QUYỀN CHO LOGIN THƯỜNG
+           
             PermissionDAO pDao = new PermissionDAO();
             List<String> userPermissions = pDao.getPermissionsByRoleId(user.getRoleId());
 
             HttpSession session = request.getSession();
             session.setAttribute("user", user);
-            session.setAttribute("userPermissions", userPermissions); // Quan trọng cho Filter
+            session.setAttribute("userPermissions", userPermissions); 
             session.setAttribute("userId", user.getUserId());
             session.setAttribute("username", user.getUsername());
             session.setAttribute("fullName", user.getFullName());
