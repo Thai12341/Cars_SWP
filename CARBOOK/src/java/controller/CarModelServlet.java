@@ -15,7 +15,7 @@ import jakarta.servlet.http.HttpSession;
 import java.time.LocalDate;
 import java.util.List;
 
-import com.google.gson.Gson; // Đảm bảo bạn đã add thư viện GSON vào Project
+import com.google.gson.Gson; 
 
 
 @WebServlet(name = "CarModelServlet", urlPatterns = {"/car-models"})
