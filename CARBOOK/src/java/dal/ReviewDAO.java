@@ -1,7 +1,6 @@
 package dal;
 
 import model.Review;
-import model.ReviewDTO;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -80,46 +79,6 @@ public class ReviewDAO extends DBContext {
     }
     
     /**
-     * Get reviews with customer information by car ID
-     * @param carId
-     * @return List of ReviewDTO with customer info
-     */
-    public List<ReviewDTO> getReviewsWithCustomerByCarId(int carId) {
-        List<ReviewDTO> reviews = new ArrayList<>();
-        String sql = "SELECT r.ReviewID, r.BookingID, r.CarID, r.CustomerID, " +
-                     "u.FullName, u.ProfileImageURL, r.Rating, r.Comment, " +
-                     "r.IsApproved, r.CreatedAt " +
-                     "FROM Reviews r " +
-                     "LEFT JOIN Users u ON r.CustomerID = u.UserID " +
-                     "WHERE r.CarID = ? AND r.IsApproved = 1 " +
-                     "ORDER BY r.CreatedAt DESC";
-        
-        try {
-            PreparedStatement stm = connection.prepareStatement(sql);
-            stm.setInt(1, carId);
-            ResultSet rs = stm.executeQuery();
-            
-            while (rs.next()) {
-                ReviewDTO review = new ReviewDTO();
-                review.setReviewId(rs.getInt("ReviewID"));
-                review.setBookingId(rs.getInt("BookingID"));
-                review.setCarId(rs.getInt("CarID"));
-                review.setCustomerId(rs.getInt("CustomerID"));
-                review.setCustomerName(rs.getString("FullName"));
-                review.setCustomerProfileImage(rs.getString("ProfileImageURL"));
-                review.setRating(rs.getInt("Rating"));
-                review.setComment(rs.getString("Comment"));
-                review.setApproved(rs.getBoolean("IsApproved"));
-                review.setCreatedAt(rs.getTimestamp("CreatedAt"));
-                reviews.add(review);
-            }
-        } catch (SQLException e) {
-            System.out.println("Error getting reviews with customer by car ID: " + e.getMessage());
-        }
-        return reviews;
-    }
-    
-    /**
      * Get reviews by customer ID
      * @param customerId
      * @return List of reviews by the customer
@@ -140,28 +99,6 @@ public class ReviewDAO extends DBContext {
             System.out.println("Error getting reviews by customer ID: " + e.getMessage());
         }
         return reviews;
-    }
-    
-    /**
-     * Get review by booking ID
-     * @param bookingId
-     * @return Review object or null if not found
-     */
-    public Review getReviewByBookingId(int bookingId) {
-        String sql = "SELECT * FROM Reviews WHERE BookingID = ?";
-        
-        try {
-            PreparedStatement stm = connection.prepareStatement(sql);
-            stm.setInt(1, bookingId);
-            ResultSet rs = stm.executeQuery();
-            
-            if (rs.next()) {
-                return extractReviewFromResultSet(rs);
-            }
-        } catch (SQLException e) {
-            System.out.println("Error getting review by booking ID: " + e.getMessage());
-        }
-        return null;
     }
     
     /**
