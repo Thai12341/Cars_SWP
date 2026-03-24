@@ -280,6 +280,24 @@ public class Car {
         this.imageUrl = imageUrl;
     }
     
+    /**
+     * Get features as a list (parsed from comma-separated string)
+     * @return List of features
+     */
+    public java.util.List<String> getFeaturesList() {
+        java.util.List<String> featuresList = new java.util.ArrayList<>();
+        if (features != null && !features.trim().isEmpty()) {
+            String[] featuresArray = features.split("[,\n]");
+            for (String feature : featuresArray) {
+                String trimmedFeature = feature.trim();
+                if (!trimmedFeature.isEmpty()) {
+                    featuresList.add(trimmedFeature);
+                }
+            }
+        }
+        return featuresList;
+    }
+    
     @Override
     public String toString() {
         return "Car{" +
