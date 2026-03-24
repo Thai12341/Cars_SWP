@@ -3,6 +3,7 @@ package controller;
 import dal.ReviewDAO;
 import dal.CarDAO;
 import dal.BookingDAO;
+import dal.UserDAO;
 import model.Review;
 import model.Car;
 import model.Booking;
@@ -95,6 +96,20 @@ public class ReviewServlet extends HttpServlet {
             reviews = reviewDAO.getAllReviews();
         }
         
+        // Load customer and booking for each review
+        UserDAO userDAO = new UserDAO();
+        for (Review review : reviews) {
+            User customer = userDAO.getUserById(review.getCustomerId());
+            review.setCustomer(customer);
+            
+            Booking booking = bookingDAO.getBookingById(review.getBookingId());
+            if (booking != null) {
+                Car car = carDAO.getCarById(booking.getCarId());
+                booking.setCar(car);
+                review.setBooking(booking);
+            }
+        }
+        
         request.setAttribute("reviews", reviews);
         request.getRequestDispatcher("reviews.jsp").forward(request, response);
     }
@@ -108,6 +123,20 @@ public class ReviewServlet extends HttpServlet {
         }
         
         List<Review> pendingReviews = reviewDAO.getPendingReviews();
+        
+        // Load customer and booking for each review
+        UserDAO userDAO = new UserDAO();
+        for (Review review : pendingReviews) {
+            User customer = userDAO.getUserById(review.getCustomerId());
+            review.setCustomer(customer);
+            
+            Booking booking = bookingDAO.getBookingById(review.getBookingId());
+            if (booking != null) {
+                Car car = carDAO.getCarById(booking.getCarId());
+                booking.setCar(car);
+                review.setBooking(booking);
+            }
+        }
         
         request.setAttribute("pendingReviews", pendingReviews);
         request.getRequestDispatcher("pending-reviews.jsp").forward(request, response);
@@ -161,7 +190,6 @@ public class ReviewServlet extends HttpServlet {
             throws ServletException, IOException {
         try {
             int bookingId = Integer.parseInt(request.getParameter("bookingId"));
-            int carId = Integer.parseInt(request.getParameter("carId"));
             int rating = Integer.parseInt(request.getParameter("rating"));
             String comment = request.getParameter("comment");
             
@@ -180,6 +208,9 @@ public class ReviewServlet extends HttpServlet {
                 return;
             }
             
+            // Get carId from booking
+            int carId = booking.getCarId();
+            
             Review review = new Review();
             review.setBookingId(bookingId);
             review.setCarId(carId);
@@ -195,6 +226,7 @@ public class ReviewServlet extends HttpServlet {
                 showReviewForm(request, response, user);
             }
         } catch (Exception e) {
+            e.printStackTrace();
             request.setAttribute("error", "Lỗi: " + e.getMessage());
             response.sendRedirect("booking");
         }
