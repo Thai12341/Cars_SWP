@@ -1,6 +1,7 @@
 package controller;
 
 import dal.BookingDAO;
+import dal.CarAvailabilityDAO;
 import dal.CarDAO;
 import dal.PaymentDAO;
 import dal.NotificationDAO;
@@ -15,6 +16,7 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -30,6 +32,7 @@ import jakarta.servlet.http.HttpSession;
 public class BookingServlet extends HttpServlet {
 
     private BookingDAO bookingDAO = new BookingDAO();
+    private CarAvailabilityDAO availabilityDAO = new CarAvailabilityDAO();
     private CarDAO carDAO = new CarDAO();
     private PaymentDAO paymentDAO = new PaymentDAO();
     private NotificationDAO notificationDAO = new NotificationDAO();
@@ -102,15 +105,51 @@ public class BookingServlet extends HttpServlet {
             throws ServletException, IOException {
         List<Booking> bookings;
         
+        // Get filter parameter
+        String statusFilter = request.getParameter("status");
+        
+        System.out.println("=== Booking Filter Debug ===");
+        System.out.println("Status filter: " + statusFilter);
+        System.out.println("User Role: " + user.getRoleId());
+        
+        // Load bookings based on role
         if (user.getRoleId() == 1) { // Admin
             bookings = bookingDAO.getAllBookings();
         } else if (user.getRoleId() == 2) { // CarOwner
             // Get bookings for cars owned by this user
             List<Car> ownerCars = carDAO.getCarsByOwnerId(user.getUserId());
-            bookings = bookingDAO.getAllBookings(); // Filter in JSP or create specific method
+            bookings = new ArrayList<>();
+            for (Car car : ownerCars) {
+                List<Booking> carBookings = bookingDAO.getBookingsByCarId(car.getCarId());
+                if (carBookings != null) {
+                    bookings.addAll(carBookings);
+                }
+            }
         } else { // Customer
             bookings = bookingDAO.getBookingsByCustomerId(user.getUserId());
         }
+        
+        System.out.println("Total bookings before filter: " + (bookings != null ? bookings.size() : 0));
+        
+        // Apply status filter if provided
+        if (statusFilter != null && !statusFilter.trim().isEmpty() && bookings != null && !bookings.isEmpty()) {
+            List<Booking> filteredBookings = new ArrayList<>();
+            
+            for (Booking booking : bookings) {
+                if (statusFilter.equals(booking.getStatus())) {
+                    filteredBookings.add(booking);
+                    System.out.println("Booking " + booking.getBookingId() + 
+                                     " status: " + booking.getStatus() + " - MATCHES");
+                } else {
+                    System.out.println("Booking " + booking.getBookingId() + 
+                                     " status: " + booking.getStatus() + " - NO MATCH");
+                }
+            }
+            
+            bookings = filteredBookings;
+            System.out.println("Total bookings after filter: " + bookings.size());
+        }
+        System.out.println("=== End Booking Filter Debug ===");
         
         request.setAttribute("bookings", bookings);
         request.getRequestDispatcher("bookings.jsp").forward(request, response);
@@ -195,6 +234,12 @@ public class BookingServlet extends HttpServlet {
                 response.sendRedirect("cars");
                 return;
             }
+
+            if (!"Available".equals(car.getStatus())) {
+                request.getSession().setAttribute("error", "Xe hiện không khả dụng để đặt");
+                response.sendRedirect("cars");
+                return;
+            }
             
             String pickupDateStr = request.getParameter("pickupDate");
             String returnDateStr = request.getParameter("returnDate");
@@ -214,6 +259,8 @@ public class BookingServlet extends HttpServlet {
             // Parse format: yyyy-MM-dd HH:mm:ss (already formatted from form)
             Timestamp pickupDate = Timestamp.valueOf(pickupDateStr);
             Timestamp returnDate = Timestamp.valueOf(returnDateStr);
+            java.sql.Date pickupSqlDate = new java.sql.Date(pickupDate.getTime());
+            java.sql.Date returnSqlDate = new java.sql.Date(returnDate.getTime());
             
             System.out.println("Pickup Date: " + pickupDate);
             System.out.println("Return Date: " + returnDate);
@@ -221,9 +268,38 @@ public class BookingServlet extends HttpServlet {
             // Validate dates
             LocalDateTime pickup = pickupDate.toLocalDateTime();
             LocalDateTime returnTime = returnDate.toLocalDateTime();
+            LocalDateTime now = LocalDateTime.now();
+
+            if (pickup.isBefore(now)) {
+                request.getSession().setAttribute("error", "Thời gian nhận xe không được trước thời điểm hiện tại");
+                request.setAttribute("car", car);
+                request.getRequestDispatcher("booking-form.jsp").forward(request, response);
+                return;
+            }
             
             if (returnTime.isBefore(pickup)) {
                 request.getSession().setAttribute("error", "Ngày trả xe phải sau ngày nhận xe");
+                request.setAttribute("car", car);
+                request.getRequestDispatcher("booking-form.jsp").forward(request, response);
+                return;
+            }
+
+            if (!availabilityDAO.isCarAvailableForDateRange(carId, pickupSqlDate, returnSqlDate)) {
+                request.getSession().setAttribute("error", "Xe không khả dụng trong khoảng thời gian bạn chọn");
+                request.setAttribute("car", car);
+                request.getRequestDispatcher("booking-form.jsp").forward(request, response);
+                return;
+            }
+
+            if (bookingDAO.hasActiveBookingInPeriod(carId, pickupSqlDate, returnSqlDate)) {
+                request.getSession().setAttribute("error", "Xe đã có booking trong khoảng thời gian này. Vui lòng chọn thời gian khác.");
+                request.setAttribute("car", car);
+                request.getRequestDispatcher("booking-form.jsp").forward(request, response);
+                return;
+            }
+
+            if (bookingDAO.hasActiveMaintenanceInPeriod(carId, pickupSqlDate, returnSqlDate)) {
+                request.getSession().setAttribute("error", "Xe đang có lịch bảo trì trong khoảng thời gian này. Vui lòng chọn thời gian khác.");
                 request.setAttribute("car", car);
                 request.getRequestDispatcher("booking-form.jsp").forward(request, response);
                 return;
