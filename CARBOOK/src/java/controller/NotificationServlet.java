@@ -15,7 +15,7 @@ import jakarta.servlet.http.HttpSession;
 /**
  * NotificationServlet - Handles notification operations
  */
-@WebServlet(name = "NotificationServlet", urlPatterns = {"/notification", "/notifications"})
+@WebServlet(name = "NotificationServlet", urlPatterns = { "/notification", "/notifications" })
 public class NotificationServlet extends HttpServlet {
 
     private NotificationDAO notificationDAO = new NotificationDAO();
@@ -25,18 +25,18 @@ public class NotificationServlet extends HttpServlet {
             throws ServletException, IOException {
         HttpSession session = request.getSession();
         User user = (User) session.getAttribute("user");
-        
+
         if (user == null) {
             response.sendRedirect("login");
             return;
         }
-        
+
         String action = request.getParameter("action");
-        
+
         if (action == null) {
             action = "list";
         }
-        
+
         switch (action) {
             case "list":
                 listNotifications(request, response, user);
@@ -67,14 +67,14 @@ public class NotificationServlet extends HttpServlet {
             throws ServletException, IOException {
         HttpSession session = request.getSession();
         User user = (User) session.getAttribute("user");
-        
+
         if (user == null) {
             response.sendRedirect("login");
             return;
         }
-        
+
         String action = request.getParameter("action");
-        
+
         if ("create".equals(action)) {
             createNotification(request, response, user);
         }
@@ -82,9 +82,42 @@ public class NotificationServlet extends HttpServlet {
 
     private void listNotifications(HttpServletRequest request, HttpServletResponse response, User user)
             throws ServletException, IOException {
-        List<Notification> notifications = notificationDAO.getNotificationsByUserId(user.getUserId());
+        String filter = request.getParameter("filter");
+        String sort = request.getParameter("sort");
+        List<Notification> notifications;
+
+        // Filter: unread, read, hoặc all
+        if ("unread".equals(filter)) {
+            // Unread notifications
+            if ("oldest".equals(sort)) {
+                notifications = notificationDAO.getUnreadNotificationsByOldestFirst(user.getUserId());
+            } else {
+                notifications = notificationDAO.getUnreadNotifications(user.getUserId());
+            }
+            request.setAttribute("filter", "unread");
+        } else if ("read".equals(filter)) {
+            // Read notifications
+            if ("oldest".equals(sort)) {
+                notifications = notificationDAO.getReadNotificationsByOldestFirst(user.getUserId());
+            } else {
+                notifications = notificationDAO.getReadNotifications(user.getUserId());
+            }
+            request.setAttribute("filter", "read");
+        } else {
+            // All notifications
+            if ("oldest".equals(sort)) {
+                notifications = notificationDAO.getNotificationsByUserIdOldestFirst(user.getUserId());
+            } else {
+                notifications = notificationDAO.getNotificationsByUserId(user.getUserId());
+            }
+        }
+
+        if ("oldest".equals(sort)) {
+            request.setAttribute("sort", "oldest");
+        }
+
         int unreadCount = notificationDAO.getUnreadCount(user.getUserId());
-        
+
         request.setAttribute("notifications", notifications);
         request.setAttribute("unreadCount", unreadCount);
         request.getRequestDispatcher("notifications.jsp").forward(request, response);
@@ -92,7 +125,15 @@ public class NotificationServlet extends HttpServlet {
 
     private void listUnreadNotifications(HttpServletRequest request, HttpServletResponse response, User user)
             throws ServletException, IOException {
-        List<Notification> notifications = notificationDAO.getUnreadNotifications(user.getUserId());
+           String sort = request.getParameter("sort");
+        List<Notification> notifications;
+        
+        if ("oldest".equals(sort)) {
+            notifications = notificationDAO.getUnreadNotificationsByOldestFirst(user.getUserId());
+            request.setAttribute("sort", "oldest");
+        } else {
+            notifications = notificationDAO.getUnreadNotifications(user.getUserId());
+        }
         
         request.setAttribute("notifications", notifications);
         request.setAttribute("unreadOnly", true);
@@ -102,18 +143,18 @@ public class NotificationServlet extends HttpServlet {
     private void markAsRead(HttpServletRequest request, HttpServletResponse response, User user)
             throws ServletException, IOException {
         int notificationId = Integer.parseInt(request.getParameter("id"));
-        
+
         Notification notification = notificationDAO.getNotificationById(notificationId);
-        
+
         if (notification == null || notification.getUserId() != user.getUserId()) {
             response.sendRedirect("notifications");
             return;
         }
-        
+
         if (notificationDAO.markAsRead(notificationId)) {
             // Update unread count in session
             updateUnreadCountInSession(request, user);
-            
+
             String redirectUrl = request.getParameter("redirect");
             if (redirectUrl != null && !redirectUrl.isEmpty()) {
                 response.sendRedirect(redirectUrl);
@@ -134,34 +175,34 @@ public class NotificationServlet extends HttpServlet {
         } else {
             request.setAttribute("error", "Lỗi khi đánh dấu thông báo");
         }
-        
+
         response.sendRedirect("notifications");
     }
 
     private void deleteNotification(HttpServletRequest request, HttpServletResponse response, User user)
             throws ServletException, IOException {
         int notificationId = Integer.parseInt(request.getParameter("id"));
-        
+
         Notification notification = notificationDAO.getNotificationById(notificationId);
-        
+
         if (notification == null || notification.getUserId() != user.getUserId()) {
             response.sendRedirect("notifications");
             return;
         }
-        
+
         if (notificationDAO.deleteNotification(notificationId)) {
             request.setAttribute("success", "Đã xóa thông báo");
         } else {
             request.setAttribute("error", "Lỗi khi xóa thông báo");
         }
-        
+
         response.sendRedirect("notifications");
     }
 
     private void getUnreadCount(HttpServletRequest request, HttpServletResponse response, User user)
             throws ServletException, IOException {
         int count = notificationDAO.getUnreadCount(user.getUserId());
-        
+
         response.setContentType("application/json");
         response.getWriter().write("{\"count\": " + count + "}");
     }
@@ -175,18 +216,18 @@ public class NotificationServlet extends HttpServlet {
             String message = request.getParameter("message");
             String relatedEntityType = request.getParameter("relatedEntityType");
             String relatedEntityIdStr = request.getParameter("relatedEntityId");
-            
+
             Notification notification = new Notification();
             notification.setUserId(userId);
             notification.setType(type);
             notification.setTitle(title);
             notification.setMessage(message);
             notification.setRelatedEntityType(relatedEntityType);
-            
+
             if (relatedEntityIdStr != null && !relatedEntityIdStr.isEmpty()) {
                 notification.setRelatedEntityId(Integer.parseInt(relatedEntityIdStr));
             }
-            
+
             if (notificationDAO.createNotification(notification)) {
                 response.getWriter().write("{\"success\": true}");
             } else {
@@ -196,7 +237,7 @@ public class NotificationServlet extends HttpServlet {
             response.getWriter().write("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
         }
     }
-    
+
     /**
      * Helper method to update unread count in session
      */
