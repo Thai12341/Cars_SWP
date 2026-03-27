@@ -14,7 +14,7 @@ public class Iconstant {
      
 
     public static final String GOOGLE_CLIENT_SECRET =
-        "";
+        "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";
 
 
     public static final String GOOGLE_REDIRECT_URI =

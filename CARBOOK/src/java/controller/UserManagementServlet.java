@@ -11,11 +11,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
+<<<<<<< HEAD
 /**
  * UserManagementServlet - Admin user management
  * @author
  */
 @WebServlet(name = "UserManagementServlet", urlPatterns = {"/admin/users"})
+=======
+@WebServlet(name = "UserManagementServlet", urlPatterns = {"/users"})
+>>>>>>> 9f0cc680ef36485b50734f948fd8b5fe4c8b52b8
 public class UserManagementServlet extends HttpServlet {
 
     @Override
@@ -23,6 +27,7 @@ public class UserManagementServlet extends HttpServlet {
             throws ServletException, IOException {
         HttpSession session = request.getSession(false);
         
+<<<<<<< HEAD
         if (session == null || session.getAttribute("user") == null) {
             response.sendRedirect("../login?redirect=admin/users");
             return;
@@ -55,12 +60,35 @@ public class UserManagementServlet extends HttpServlet {
             request.setAttribute("users", users);
         }
         
+=======
+       
+        User currentUser = (session != null) ? (User) session.getAttribute("user") : null;
+        if (currentUser == null || currentUser.getRoleId() != 1) {         
+            response.sendRedirect("login"); 
+            return;
+        }
+
+      
+        String action = request.getParameter("action");
+        String keyword = request.getParameter("keyword");
+        UserDAO userDAO = new UserDAO();
+        List<User> users;
+
+        if ("search".equals(action) && keyword != null) {
+            users = userDAO.searchUsers(keyword);
+            request.setAttribute("keyword", keyword);
+        } else {
+            users = userDAO.getAllUsers();
+        }
+        request.setAttribute("users", users);
+>>>>>>> 9f0cc680ef36485b50734f948fd8b5fe4c8b52b8
         request.getRequestDispatcher("user-management.jsp").forward(request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+<<<<<<< HEAD
         response.setContentType("text/html;charset=UTF-8");
         
         HttpSession session = request.getSession(false);
@@ -119,3 +147,49 @@ public class UserManagementServlet extends HttpServlet {
         return "User Management Servlet for CARBOOK Admin";
     }
 }
+=======
+        
+        HttpSession session = request.getSession(false);
+        User currentUser = (session != null) ? (User) session.getAttribute("user") : null;
+
+        if (currentUser == null || currentUser.getRoleId() != 1) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+
+        String action = request.getParameter("action");
+        String userIdStr = request.getParameter("userId");
+
+        if (userIdStr != null) {
+            try {
+                int userId = Integer.parseInt(userIdStr);
+                UserDAO userDAO = new UserDAO();
+                boolean success = false;
+
+                switch (action) {
+                    case "activate":
+                        success = userDAO.setUserActiveStatus(userId, true);
+                        break;
+                    case "deactivate":
+                        success = userDAO.setUserActiveStatus(userId, false);
+                        break;
+                    case "delete":
+
+                        success = userDAO.deleteUser(userId);
+                        break;
+                }
+
+
+                if (success) {
+                    response.sendRedirect("users?success=1");
+                } else {
+                    response.sendRedirect("users?error=1");
+                }
+
+            } catch (Exception e) {
+                response.sendRedirect("users?error=system");
+            }
+        }
+    }
+}
+>>>>>>> 9f0cc680ef36485b50734f948fd8b5fe4c8b52b8

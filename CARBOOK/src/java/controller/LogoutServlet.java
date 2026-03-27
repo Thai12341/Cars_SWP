@@ -18,13 +18,21 @@ public class LogoutServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+<<<<<<< HEAD
         // Invalidate session
+=======
+      
+>>>>>>> 9f0cc680ef36485b50734f948fd8b5fe4c8b52b8
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();
         }
         
+<<<<<<< HEAD
         // Redirect to login page
+=======
+      
+>>>>>>> 9f0cc680ef36485b50734f948fd8b5fe4c8b52b8
         response.sendRedirect("login");
     }
 

@@ -23,10 +23,14 @@ public class ProfileServlet extends HttpServlet {
             throws ServletException, IOException {
         HttpSession session = request.getSession(false);
         
+<<<<<<< HEAD
         if (session == null || session.getAttribute("user") == null) {
             response.sendRedirect("login?redirect=profile");
             return;
         }
+=======
+       
+>>>>>>> 9f0cc680ef36485b50734f948fd8b5fe4c8b52b8
         
         User user = (User) session.getAttribute("user");
         
