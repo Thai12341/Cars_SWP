@@ -34,7 +34,19 @@
                     <c:otherwise>Lịch sử đặt xe</c:otherwise>
                 </c:choose>
             </h2>
-            
+            <%-- Hiển thị thông báo lỗi --%>
+            <c:if test="${not empty sessionScope.error}">
+                <div class="alert alert-danger">${sessionScope.error}</div>
+                <%-- Xóa lỗi ngay lập tức sau khi hiển thị --%>
+                <c:remove var="error" scope="session" />
+            </c:if>
+
+            <%-- Hiển thị thông báo thành công --%>
+            <c:if test="${not empty sessionScope.success}">
+                <div class="alert alert-success">${sessionScope.success}</div>
+                <%-- Xóa thông báo thành công ngay lập tức --%>
+                <c:remove var="success" scope="session" />
+            </c:if>
             <c:if test="${not empty error}">
                 <div class="alert alert-danger">${error}</div>
             </c:if>
