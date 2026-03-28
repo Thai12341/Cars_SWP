@@ -41,12 +41,23 @@
                     
                     <c:if test="${not empty car}">
                     <c:if test="${not empty error}">
-                        <div class="alert alert-danger">${error}</div>
-                    </c:if>
-                    <c:if test="${not empty sessionScope.success}">
-                        <div class="alert alert-success">${sessionScope.success}</div>
-                        <c:remove var="success" scope="session"/>
-                    </c:if>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="icon-exclamation-circle"></i> <strong>Lỗi:</strong> ${error}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+</c:if>
+
+<c:if test="${not empty sessionScope.success}">
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="icon-check-circle"></i> <strong>Thành công:</strong> ${sessionScope.success}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    <c:remove var="success" scope="session"/>
+</c:if>
                     
                     <div class="row">
                         <div class="col-md-8">
@@ -188,95 +199,89 @@
     <script src="js/scrollax.min.js"></script>
     <script src="js/main.js"></script>
     
-    <script>
-      $(document).ready(function(){
-        // Khởi tạo datepicker cho ngày
-        $('#pickup_date_only, #return_date_only').datepicker({
-          format: 'dd/mm/yyyy',
-          autoclose: true,
-          todayHighlight: true,
-          startDate: new Date()
-        });
-        
-        // Khởi tạo timepicker cho giờ
-        $('#pickup_time_only, #return_time_only').timepicker({
-          timeFormat: 'H:i',
-          interval: 30,
-          minTime: '06:00',
-          maxTime: '22:00',
-          defaultTime: '09:00',
-          startTime: '06:00',
-          dynamic: false,
-          dropdown: true,
-          scrollbar: true,
-          show2400: false
-        });
-        
-        // Auto-fill từ params
-        var pickupDate = '${pickupDate}';
-        var dropoffDate = '${dropoffDate}';
-        var pickupTime = '${pickupTime}';
-        var pickupLocation = '${pickupLocation}';
-        var dropoffLocation = '${dropoffLocation}';
-        
-        if (pickupDate) {
-          $('#pickup_date_only').val(pickupDate);
-        }
-        if (dropoffDate) {
-          $('#return_date_only').val(dropoffDate);
-        }
-        if (pickupTime) {
-          $('#pickup_time_only').val(pickupTime);
-          $('#return_time_only').val(pickupTime); // Mặc định giờ trả = giờ nhận
-        }
-        if (pickupLocation) {
-          $('#pickup_location').val(pickupLocation);
-        }
-        if (dropoffLocation) {
-          $('#return_location').val(dropoffLocation);
-        }
-        
-        // Validation và combine trước khi submit
-        $('form').on('submit', function(e) {
-          var pickupDateVal = $('#pickup_date_only').val();
-          var pickupTimeVal = $('#pickup_time_only').val();
-          var returnDateVal = $('#return_date_only').val();
-          var returnTimeVal = $('#return_time_only').val();
-          
-          if (!pickupDateVal || !pickupTimeVal || !returnDateVal || !returnTimeVal) {
-            alert('Vui lòng chọn đầy đủ ngày giờ nhận và trả xe');
-            e.preventDefault();
-            return false;
-          }
-          
-          // Chuyển đổi mm/dd/yyyy + HH:mm sang yyyy-MM-dd HH:mm:ss
-          // Bootstrap datepicker trả về mm/dd/yyyy theo US locale
-          var pickupParts = pickupDateVal.split('/');
-          var returnParts = returnDateVal.split('/');
-          
-          // pickupParts[0] = month, pickupParts[1] = day, pickupParts[2] = year
-          var pickupMonth = pickupParts[0].padStart(2, '0');
-          var pickupDay = pickupParts[1].padStart(2, '0');
-          var pickupYear = pickupParts[2];
-          
-          var returnMonth = returnParts[0].padStart(2, '0');
-          var returnDay = returnParts[1].padStart(2, '0');
-          var returnYear = returnParts[2];
-          
-          // Format: yyyy-MM-dd HH:mm:ss
-          var pickupFormatted = pickupYear + '-' + pickupMonth + '-' + pickupDay + ' ' + pickupTimeVal + ':00';
-          var returnFormatted = returnYear + '-' + returnMonth + '-' + returnDay + ' ' + returnTimeVal + ':00';
-          
-          console.log('Pickup formatted: ' + pickupFormatted);
-          console.log('Return formatted: ' + returnFormatted);
-          
-          $('#pickup_date_full').val(pickupFormatted);
-          $('#return_date_full').val(returnFormatted);
-          
-          // Xóa name của các field tạm
-          $('#pickup_date_only, #pickup_time_only, #return_date_only, #return_time_only').removeAttr('name');
-        });
+   <script>
+  $(document).ready(function() {
+    // 1. CHỖ NÀY QUAN TRỌNG: Tự động ẩn thông báo sau 5 giây ngay khi trang load xong
+    setTimeout(function() {
+      $(".alert-dismissible").fadeTo(500, 0).slideUp(500, function() {
+        $(this).remove();
       });
-    </script>
+    }, 5000);
+
+    // 2. Khởi tạo datepicker cho ngày
+    $('#pickup_date_only, #return_date_only').datepicker({
+      format: 'dd/mm/yyyy',
+      autoclose: true,
+      todayHighlight: true,
+      startDate: new Date()
+    });
+
+    // 3. Khởi tạo timepicker cho giờ
+    $('#pickup_time_only, #return_time_only').timepicker({
+      timeFormat: 'H:i',
+      interval: 30,
+      minTime: '06:00',
+      maxTime: '22:00',
+      defaultTime: '09:00',
+      startTime: '06:00',
+      dynamic: false,
+      dropdown: true,
+      scrollbar: true,
+      show2400: false
+    });
+
+    // 4. Auto-fill dữ liệu từ Server gửi về (nếu có)
+    var pickupDate = '${pickupDate}';
+    var dropoffDate = '${dropoffDate}';
+    var pickupTime = '${pickupTime}';
+    var pickupLocation = '${pickupLocation}';
+    var dropoffLocation = '${dropoffLocation}';
+
+    if (pickupDate) $('#pickup_date_only').val(pickupDate);
+    if (dropoffDate) $('#return_date_only').val(dropoffDate);
+    if (pickupTime) {
+      $('#pickup_time_only').val(pickupTime);
+      $('#return_time_only').val(pickupTime);
+    }
+    if (pickupLocation) $('#pickup_location').val(pickupLocation);
+    if (dropoffLocation) $('#return_location').val(dropoffLocation);
+
+    // 5. Xử lý Logic khi người dùng bấm nút "Xác nhận đặt xe"
+    $('form').on('submit', function(e) {
+      var pickupDateVal = $('#pickup_date_only').val();
+      var pickupTimeVal = $('#pickup_time_only').val();
+      var returnDateVal = $('#return_date_only').val();
+      var returnTimeVal = $('#return_time_only').val();
+
+      // Kiểm tra xem đã nhập đủ chưa
+      if (!pickupDateVal || !pickupTimeVal || !returnDateVal || !returnTimeVal) {
+        alert('Vui lòng chọn đầy đủ ngày giờ nhận và trả xe');
+        e.preventDefault();
+        return false;
+      }
+
+      // Format lại ngày tháng để gửi về cho Servlet (yyyy-MM-dd HH:mm:ss)
+      var pickupParts = pickupDateVal.split('/');
+      var returnParts = returnDateVal.split('/');
+
+      var pDay = pickupParts[0].padStart(2, '0');
+      var pMonth = pickupParts[1].padStart(2, '0');
+      var pYear = pickupParts[2];
+
+      var rDay = returnParts[0].padStart(2, '0');
+      var rMonth = returnParts[1].padStart(2, '0');
+      var rYear = returnParts[2];
+
+      var pickupFormatted = pYear + '-' + pMonth + '-' + pDay + ' ' + pickupTimeVal + ':00';
+      var returnFormatted = rYear + '-' + rMonth + '-' + rDay + ' ' + returnTimeVal + ':00';
+
+      // Gán vào 2 ô hidden để submit lên Server
+      $('#pickup_date_full').val(pickupFormatted);
+      $('#return_date_full').val(returnFormatted);
+      
+      // LƯU Ý: Mình đã bỏ dòng removeAttr('name') để tránh lỗi mất dữ liệu khi validate thất bại.
+    });
+  });
+</script>
 </body>
 </html>
