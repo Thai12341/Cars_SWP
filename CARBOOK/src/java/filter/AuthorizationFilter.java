@@ -32,6 +32,7 @@ public class AuthorizationFilter implements Filter {
         config.put("/notifications", "CUSTOMER_ACCESS");
         config.put("/profile", "CUSTOMER_ACCESS");
         config.put("/assign-role", "MANAGE_ROLES");
+        config.put("/verify", "VERIFY_CARS");
     }
 
 @Override
