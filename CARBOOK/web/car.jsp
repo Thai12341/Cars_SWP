@@ -49,8 +49,13 @@
     <!-- Search Filter Section -->
     <section class="ftco-section bg-light pt-4">
       <div class="container">
-        <c:if test="${not empty error}">
-          <div class="alert alert-danger">${error}</div>
+        <%-- Thêm id="error-alert" để Javascript tìm thấy và ẩn đi --%>
+        <c:if test="${not empty sessionScope.error}">
+            <div id="error-alert" class="alert alert-danger">
+                ${sessionScope.error}
+            </div>
+            <%-- Lệnh xóa lỗi khỏi bộ nhớ ngay sau khi hiển thị --%>
+            <c:remove var="error" scope="session" />
         </c:if>
         
         <div class="row">
