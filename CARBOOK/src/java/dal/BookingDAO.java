@@ -519,4 +519,26 @@ public class BookingDAO extends DBContext {
             System.out.println("Error loading booking related data: " + e.getMessage());
         }
     }
+    
+    /**
+ * Tự động từ chối tất cả các đơn Pending khác của cùng xe bị trùng lịch
+ */
+public void rejectOverlappingPendingBookings(int carId, java.sql.Date startDate, java.sql.Date endDate, int approvedBookingId) {
+    String sql = "UPDATE Bookings SET Status = 'Rejected', " +
+                 "RejectionReason = N'Xe đã có người khác đặt trước bạn trong khoảng thời gian này.', " +
+                 "UpdatedAt = GETDATE() " +
+                 "WHERE CarID = ? AND Status = 'Pending' AND BookingID <> ? " +
+                 "AND CAST(PickupDate AS DATE) <= ? " + 
+                 "AND CAST(ReturnDate AS DATE) >= ?";
+    try {
+        PreparedStatement stm = connection.prepareStatement(sql);
+        stm.setInt(1, carId);
+        stm.setInt(2, approvedBookingId);
+        stm.setDate(3, endDate);
+        stm.setDate(4, startDate);
+        stm.executeUpdate();
+    } catch (SQLException e) {
+        System.out.println("Lỗi tự động từ chối: " + e.getMessage());
+    }
+}
 }
