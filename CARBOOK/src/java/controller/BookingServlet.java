@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -41,10 +42,7 @@ public class BookingServlet extends HttpServlet {
         HttpSession session = request.getSession();
         User user = (User) session.getAttribute("user");
         
-        if (user == null) {
-            response.sendRedirect("login");
-            return;
-        }
+       
         
         String action = request.getParameter("action");
         
@@ -102,22 +100,63 @@ public class BookingServlet extends HttpServlet {
             throws ServletException, IOException {
         List<Booking> bookings;
         
+        // Get filter parameter
+        String statusFilter = request.getParameter("status");
+        
+        System.out.println("=== Booking Filter Debug ===");
+        System.out.println("Status filter: " + statusFilter);
+        System.out.println("User Role: " + user.getRoleId());
+        
+        // Load bookings based on role
         if (user.getRoleId() == 1) { // Admin
             bookings = bookingDAO.getAllBookings();
         } else if (user.getRoleId() == 2) { // CarOwner
             // Get bookings for cars owned by this user
             List<Car> ownerCars = carDAO.getCarsByOwnerId(user.getUserId());
-            bookings = bookingDAO.getAllBookings(); // Filter in JSP or create specific method
+            bookings = new ArrayList<>();
+            for (Car car : ownerCars) {
+                List<Booking> carBookings = bookingDAO.getBookingsByCarId(car.getCarId());
+                if (carBookings != null) {
+                    bookings.addAll(carBookings);
+                }
+            }
         } else { // Customer
             bookings = bookingDAO.getBookingsByCustomerId(user.getUserId());
         }
+        
+        System.out.println("Total bookings before filter: " + (bookings != null ? bookings.size() : 0));
+        
+        // Apply status filter if provided
+        if (statusFilter != null && !statusFilter.trim().isEmpty() && bookings != null && !bookings.isEmpty()) {
+            List<Booking> filteredBookings = new ArrayList<>();
+            
+            for (Booking booking : bookings) {
+                if (statusFilter.equals(booking.getStatus())) {
+                    filteredBookings.add(booking);
+                    System.out.println("Booking " + booking.getBookingId() + 
+                                     " status: " + booking.getStatus() + " - MATCHES");
+                } else {
+                    System.out.println("Booking " + booking.getBookingId() + 
+                                     " status: " + booking.getStatus() + " - NO MATCH");
+                }
+            }
+            
+            bookings = filteredBookings;
+            System.out.println("Total bookings after filter: " + bookings.size());
+        }
+        System.out.println("=== End Booking Filter Debug ===");
         
         request.setAttribute("bookings", bookings);
         request.getRequestDispatcher("bookings.jsp").forward(request, response);
     }
 
-    private void showBookingForm(HttpServletRequest request, HttpServletResponse response)
+   private void showBookingForm(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        
+        // --- THÊM DÒNG NÀY ĐỂ KHAI BÁO BIẾN user ---
+        User user = (User) request.getSession().getAttribute("user");
+        // ------------------------------------------
+
         String carIdStr = request.getParameter("carId");
         
         System.out.println("showBookingForm called with carId: " + carIdStr);
@@ -136,6 +175,22 @@ public class BookingServlet extends HttpServlet {
             
             if (car == null) {
                 request.getSession().setAttribute("error", "Không tìm thấy xe");
+                response.sendRedirect("cars");
+                return;
+            }
+
+            if (user != null && car.getOwnerId() == user.getUserId()) {
+                // Lưu vào session để Redirect không bị mất dữ liệu
+                request.getSession().setAttribute("error", "Bạn không thể đặt xe của chính mình!");
+                // Đẩy về trang danh sách xe (nơi có đoạn c:remove đã viết ở trên)
+                response.sendRedirect("cars");
+                return;
+            }
+            // -----------------------------------------------------
+
+            // Log detailed car status for debugging (Giữ nguyên phần dưới của bạn)
+            if (!"Available".equals(car.getStatus())) {
+                request.getSession().setAttribute("error", "Xe không khả dụng (Status: " + car.getStatus() + ")");
                 response.sendRedirect("cars");
                 return;
             }
@@ -171,7 +226,8 @@ public class BookingServlet extends HttpServlet {
             System.out.println("Forwarding to booking-form.jsp");
             request.setAttribute("car", car);
             request.getRequestDispatcher("booking-form.jsp").forward(request, response);
-        } catch (Exception e) {
+        } catch (Exception e) 
+        {
             System.out.println("Error in showBookingForm: " + e.getMessage());
             e.printStackTrace();
             request.getSession().setAttribute("error", "Lỗi: " + e.getMessage());
@@ -192,6 +248,11 @@ public class BookingServlet extends HttpServlet {
             if (car == null) {
                 System.out.println("Car not found!");
                 request.getSession().setAttribute("error", "Không tìm thấy xe");
+                response.sendRedirect("cars");
+                return;
+            }
+            if (car.getOwnerId() == user.getUserId()) {
+                request.getSession().setAttribute("error", "Hệ thống từ chối: Bạn là chủ sở hữu của xe này.");
                 response.sendRedirect("cars");
                 return;
             }
@@ -223,6 +284,7 @@ public class BookingServlet extends HttpServlet {
             LocalDateTime returnTime = returnDate.toLocalDateTime();
             
             if (returnTime.isBefore(pickup)) {
+                request.getSession().removeAttribute("success");
                 request.getSession().setAttribute("error", "Ngày trả xe phải sau ngày nhận xe");
                 request.setAttribute("car", car);
                 request.getRequestDispatcher("booking-form.jsp").forward(request, response);
@@ -270,6 +332,7 @@ public class BookingServlet extends HttpServlet {
             System.out.println("Booking ID: " + bookingId);
             
             if (bookingId > 0) {
+                request.getSession().removeAttribute("error");
                 // Update car status
                 System.out.println("Updating car status to 'Booked' for car ID: " + carId);
                 boolean statusUpdated = carDAO.updateCarStatus(carId, "Booked");
@@ -299,11 +362,16 @@ public class BookingServlet extends HttpServlet {
                 request.getRequestDispatcher("booking-form.jsp").forward(request, response);
             }
         } catch (Exception e) {
-            System.out.println("=== ERROR IN CREATE BOOKING ===");
-            System.out.println("Error: " + e.getMessage());
-            e.printStackTrace();
-            request.getSession().setAttribute("error", "Lỗi: " + e.getMessage());
-            response.sendRedirect("cars");
+          System.out.println("=== ERROR IN CREATE BOOKING ===");
+    System.out.println("Error: " + e.getMessage());
+    e.printStackTrace();
+
+    request.getSession().removeAttribute("success"); 
+    
+
+    request.getSession().setAttribute("error", "Lỗi hệ thống: " + e.getMessage());
+
+    response.sendRedirect("cars");
         }
     }
 
@@ -320,7 +388,7 @@ public class BookingServlet extends HttpServlet {
         
         Car car = carDAO.getCarById(booking.getCarId());
         
-        // Check if this booking has a review
+        
         Review existingReview = reviewDAO.getReviewByBookingId(bookingId);
         
         request.setAttribute("booking", booking);
@@ -329,165 +397,231 @@ public class BookingServlet extends HttpServlet {
         request.getRequestDispatcher("booking-detail.jsp").forward(request, response);
     }
 
-    private void approveBooking(HttpServletRequest request, HttpServletResponse response, User user)
+private void approveBooking(HttpServletRequest request, HttpServletResponse response, User user)
             throws ServletException, IOException {
-        // Only admin or car owner can approve
-        if (user.getRoleId() != 1 && user.getRoleId() != 2) {
-            request.setAttribute("error", "Bạn không có quyền duyệt đặt xe");
-            response.sendRedirect("booking");
-            return;
-        }
-        
-        int bookingId = Integer.parseInt(request.getParameter("id"));
-        Booking booking = bookingDAO.getBookingById(bookingId);
-        
-        if (bookingDAO.approveBooking(bookingId, user.getUserId())) {
-            // Tạo thông báo cho khách hàng
-            Notification notification = new Notification();
-            notification.setUserId(booking.getCustomerId());
-            notification.setType("booking_approved");
-            notification.setTitle("Đơn đặt xe đã được duyệt");
-            notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã được duyệt. Vui lòng thanh toán để hoàn tất đặt xe.");
-            notification.setRelatedEntityType("Booking");
-            notification.setRelatedEntityId(bookingId);
-            notificationDAO.createNotification(notification);
-            
-            System.out.println("Notification sent to customer " + booking.getCustomerId() + " for approved booking " + bookingId);
-            request.setAttribute("success", "Đã duyệt đặt xe");
-        } else {
-            request.setAttribute("error", "Lỗi khi duyệt đặt xe");
-        }
-        
-        response.sendRedirect("booking?action=view&id=" + bookingId);
+
+    HttpSession session = request.getSession();
+
+    // 1. Kiểm tra quyền Admin/Owner
+    if (user.getRoleId() != 1 && user.getRoleId() != 2) {
+        session.removeAttribute("success"); 
+        session.setAttribute("error", "Bạn không có quyền duyệt đặt xe");
+        response.sendRedirect("booking");
+        return;
+    }
+    
+    int bookingId = Integer.parseInt(request.getParameter("id"));
+    Booking booking = bookingDAO.getBookingById(bookingId); 
+    
+    if (booking == null) {
+        session.setAttribute("error", "Không tìm thấy đơn đặt xe.");
+        response.sendRedirect("booking");
+        return;
     }
 
-    private void rejectBooking(HttpServletRequest request, HttpServletResponse response, User user)
-            throws ServletException, IOException {
-        // Only admin or car owner can reject
-        if (user.getRoleId() != 1 && user.getRoleId() != 2) {
-            request.setAttribute("error", "Bạn không có quyền từ chối đặt xe");
-            response.sendRedirect("booking");
-            return;
-        }
-        
-        int bookingId = Integer.parseInt(request.getParameter("id"));
-        String reason = request.getParameter("reason");
-        
-        if (reason == null || reason.trim().isEmpty()) {
-            reason = "Không đủ điều kiện";
-        }
-        
-        Booking booking = bookingDAO.getBookingById(bookingId);
-        
-        if (bookingDAO.rejectBooking(bookingId, reason)) {
-            // Set car back to available
-            System.out.println("Rejecting booking - Setting car " + booking.getCarId() + " back to Available");
-            boolean statusUpdated = carDAO.updateCarStatus(booking.getCarId(), "Available");
-            System.out.println("Car status update result: " + statusUpdated);
-            
-            // Tạo thông báo cho khách hàng
-            Notification notification = new Notification();
-            notification.setUserId(booking.getCustomerId());
-            notification.setType("booking_rejected");
-            notification.setTitle("Đơn đặt xe đã bị từ chối");
-            notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã bị từ chối. Lý do: " + reason);
-            notification.setRelatedEntityType("Booking");
-            notification.setRelatedEntityId(bookingId);
-            notificationDAO.createNotification(notification);
-            
-            System.out.println("Notification sent to customer " + booking.getCustomerId() + " for rejected booking " + bookingId);
-            request.setAttribute("success", "Đã từ chối đặt xe");
-        } else {
-            request.setAttribute("error", "Lỗi khi từ chối đặt xe");
-        }
-        
-        response.sendRedirect("booking?action=view&id=" + bookingId);
-    }
+    
+    java.sql.Date start1 = new java.sql.Date(booking.getPickupDate().getTime());
+    java.sql.Date end1 = new java.sql.Date(booking.getReturnDate().getTime());
 
-    private void cancelBooking(HttpServletRequest request, HttpServletResponse response, User user)
-            throws ServletException, IOException {
-        int bookingId = Integer.parseInt(request.getParameter("id"));
-        Booking booking = bookingDAO.getBookingById(bookingId);
+    
+    if (bookingDAO.approveBooking(bookingId, user.getUserId())) {
         
-        if (booking == null) {
-            request.setAttribute("error", "Không tìm thấy đặt xe");
-            response.sendRedirect("booking");
-            return;
-        }
         
-        // Check if user can cancel
-        if (booking.getCustomerId() != user.getUserId() && user.getRoleId() != 1) {
-            request.setAttribute("error", "Bạn không có quyền hủy đặt xe này");
-            response.sendRedirect("booking");
-            return;
-        }
+        carDAO.updateCarStatus(booking.getCarId(), "Booked");
+
         
-        String reason = request.getParameter("reason");
-        if (reason == null || reason.trim().isEmpty()) {
-            reason = "Khách hàng hủy";
-        }
+        Notification n1 = new Notification();
+        n1.setUserId(booking.getCustomerId());
+        n1.setType("booking_approved");
+        n1.setTitle("Đặt xe thành công");
+        n1.setMessage("Đơn " + booking.getBookingReference() + " đã được duyệt. Chúc bạn chuyến đi vui vẻ!");
         
-        if (bookingDAO.cancelBooking(bookingId, user.getUserId(), reason)) {
-            // Set car back to available
-            System.out.println("Cancelling booking - Setting car " + booking.getCarId() + " back to Available");
-            boolean statusUpdated = carDAO.updateCarStatus(booking.getCarId(), "Available");
-            System.out.println("Car status update result: " + statusUpdated);
-            
-            // Tạo thông báo cho khách hàng (nếu admin hủy)
-            if (user.getUserId() != booking.getCustomerId()) {
-                Notification notification = new Notification();
-                notification.setUserId(booking.getCustomerId());
-                notification.setType("booking_cancelled");
-                notification.setTitle("Đơn đặt xe đã bị hủy");
-                notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã bị hủy. Lý do: " + reason);
-                notification.setRelatedEntityType("Booking");
-                notification.setRelatedEntityId(bookingId);
-                notificationDAO.createNotification(notification);
-                
-                System.out.println("Notification sent to customer " + booking.getCustomerId() + " for cancelled booking " + bookingId);
+      
+        n1.setRelatedEntityId(bookingId); 
+        n1.setRelatedEntityType("Booking"); 
+        
+        notificationDAO.createNotification(n1);
+
+      
+        bookingDAO.rejectOverlappingPendingBookings(booking.getCarId(), start1, end1, bookingId);
+
+    
+        List<Booking> listOther = bookingDAO.getBookingsByCarId(booking.getCarId());
+        if (listOther != null) {
+            for (Booking other : listOther) {
+                // Kiểm tra đúng lý do từ chối để gửi thông báo
+                if (other.getBookingId() != bookingId 
+                    && "Rejected".equals(other.getStatus()) 
+                    && "Xe đã có người khác đặt trước bạn trong khoảng thời gian này.".equals(other.getRejectionReason())) {
+                    
+                    Notification n2 = new Notification();
+                    n2.setUserId(other.getCustomerId());
+                    n2.setType("booking_rejected");
+                    n2.setTitle("Đặt xe không thành công");
+                    n2.setMessage("Rất tiếc! Xe này đã có người khác đặt trước bạn. Vui lòng chọn xe khác!");
+                    
+                    // QUAN TRỌNG: Set ID cho thông báo của thằng bị từ chối
+                    n2.setRelatedEntityId(other.getBookingId());
+                    n2.setRelatedEntityType("Booking");
+                    
+                    notificationDAO.createNotification(n2);
+                }
             }
-            request.setAttribute("success", "Đã hủy đặt xe");
-        } else {
-            request.setAttribute("error", "Lỗi khi hủy đặt xe");
         }
-        
-        response.sendRedirect("booking?action=view&id=" + bookingId);
+
+        session.removeAttribute("error"); 
+        session.setAttribute("success", "Đã duyệt thành công và hệ thống đã tự động báo hủy cho các đơn trùng lịch.");
+    } else {
+        session.removeAttribute("success");
+        session.setAttribute("error", "Lỗi khi duyệt đặt xe.");
+    }
+    
+    response.sendRedirect("booking?action=view&id=" + bookingId);
+}
+private void rejectBooking(HttpServletRequest request, HttpServletResponse response, User user)
+        throws ServletException, IOException {
+    
+    HttpSession session = request.getSession();
+
+    if (user.getRoleId() != 1 && user.getRoleId() != 2) {
+        session.removeAttribute("success"); // Xóa thành công cũ nếu có
+        session.setAttribute("error", "Bạn không có quyền từ chối đặt xe");
+        response.sendRedirect("booking");
+        return;
     }
 
-    private void completeBooking(HttpServletRequest request, HttpServletResponse response, User user)
+    int bookingId = Integer.parseInt(request.getParameter("id"));
+    String reason = request.getParameter("reason");
+
+    if (reason == null || reason.trim().isEmpty()) {
+        reason = "Không đủ điều kiện";
+    }
+
+    Booking booking = bookingDAO.getBookingById(bookingId);
+
+    if (bookingDAO.rejectBooking(bookingId, reason)) {
+      
+        carDAO.updateCarStatus(booking.getCarId(), "Available");
+
+       
+        Notification notification = new Notification();
+        notification.setUserId(booking.getCustomerId());
+        notification.setType("booking_rejected");
+        notification.setTitle("Đơn đặt xe đã bị từ chối");
+        notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã bị từ chối. Lý do: " + reason);
+        notification.setRelatedEntityType("Booking");
+        notification.setRelatedEntityId(bookingId);
+        notificationDAO.createNotification(notification);
+
+   
+        session.removeAttribute("error");
+        session.setAttribute("success", "Đã từ chối đơn đặt xe thành công");
+    } else {
+       
+        session.removeAttribute("success"); 
+        session.setAttribute("error", "Lỗi khi từ chối đặt xe trên hệ thống");
+    }
+
+   
+    response.sendRedirect("booking?action=view&id=" + bookingId);
+}
+
+private void cancelBooking(HttpServletRequest request, HttpServletResponse response, User user)
             throws ServletException, IOException {
-        // Only admin or car owner can complete
-        if (user.getRoleId() != 1 && user.getRoleId() != 2) {
-            request.setAttribute("error", "Bạn không có quyền hoàn thành đặt xe");
-            response.sendRedirect("booking");
-            return;
-        }
+    
+    HttpSession session = request.getSession();
+    int bookingId = Integer.parseInt(request.getParameter("id"));
+    Booking booking = bookingDAO.getBookingById(bookingId);
+    
+    
+    if (booking == null) {
+        session.removeAttribute("success");
+        session.setAttribute("error", "Không tìm thấy đơn đặt xe");
+        response.sendRedirect("booking");
+        return;
+    }
+    
+   
+    if (booking.getCustomerId() != user.getUserId() && user.getRoleId() != 1) {
+        session.removeAttribute("success");
+        session.setAttribute("error", "Bạn không có quyền hủy đặt xe này");
+        response.sendRedirect("booking");
+        return;
+    }
+    
+    String reason = request.getParameter("reason");
+    if (reason == null || reason.trim().isEmpty()) {
+        reason = "Khách hàng chủ động hủy";
+    }
+    
+    
+    if (bookingDAO.cancelBooking(bookingId, user.getUserId(), reason)) {
+        // Cập nhật trạng thái xe thành Sẵn sàng
+        carDAO.updateCarStatus(booking.getCarId(), "Available");
         
-        int bookingId = Integer.parseInt(request.getParameter("id"));
-        Booking booking = bookingDAO.getBookingById(bookingId);
         
-        if (bookingDAO.completeBooking(bookingId)) {
-            // Set car back to available
-            System.out.println("Completing booking - Setting car " + booking.getCarId() + " back to Available");
-            boolean statusUpdated = carDAO.updateCarStatus(booking.getCarId(), "Available");
-            System.out.println("Car status update result: " + statusUpdated);
-            
-            // Tạo thông báo cho khách hàng
+        if (user.getUserId() != booking.getCustomerId()) {
             Notification notification = new Notification();
             notification.setUserId(booking.getCustomerId());
-            notification.setType("booking_completed");
-            notification.setTitle("Đơn đặt xe đã hoàn thành");
-            notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ! Bạn có thể đánh giá trải nghiệm của mình.");
+            notification.setType("booking_cancelled");
+            notification.setTitle("Đơn đặt xe đã bị hủy");
+            notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã bị hủy. Lý do: " + reason);
             notification.setRelatedEntityType("Booking");
             notification.setRelatedEntityId(bookingId);
             notificationDAO.createNotification(notification);
-            
-            System.out.println("Notification sent to customer " + booking.getCustomerId() + " for completed booking " + bookingId);
-            request.setAttribute("success", "Đã hoàn thành đặt xe");
-        } else {
-            request.setAttribute("error", "Lỗi khi hoàn thành đặt xe");
         }
         
-        response.sendRedirect("booking?action=view&id=" + bookingId);
+       
+        session.removeAttribute("error"); 
+        session.setAttribute("success", "Đã hủy đơn đặt xe thành công");
+    } else {
+        session.removeAttribute("success");
+        session.setAttribute("error", "Lỗi: Không thể thực hiện hủy trên hệ thống");
     }
+    
+    
+    response.sendRedirect("booking?action=view&id=" + bookingId);
+}
+
+ private void completeBooking(HttpServletRequest request, HttpServletResponse response, User user)
+            throws ServletException, IOException {
+    
+    HttpSession session = request.getSession();
+
+    
+    if (user.getRoleId() != 1 && user.getRoleId() != 2) {
+        session.removeAttribute("success");
+        session.setAttribute("error", "Bạn không có quyền hoàn thành đặt xe");
+        response.sendRedirect("booking");
+        return;
+    }
+    
+    int bookingId = Integer.parseInt(request.getParameter("id"));
+    Booking booking = bookingDAO.getBookingById(bookingId);
+    
+    if (bookingDAO.completeBooking(bookingId)) {
+        
+        carDAO.updateCarStatus(booking.getCarId(), "Available");
+        
+        
+        Notification notification = new Notification();
+        notification.setUserId(booking.getCustomerId());
+        notification.setType("booking_completed");
+        notification.setTitle("Đơn đặt xe đã hoàn thành");
+        notification.setMessage("Đơn đặt xe " + booking.getBookingReference() + " đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!");
+        notification.setRelatedEntityType("Booking");
+        notification.setRelatedEntityId(bookingId);
+        notificationDAO.createNotification(notification);
+        
+        
+        session.removeAttribute("error"); 
+        session.setAttribute("success", "Chúc mừng! Đơn đặt xe đã hoàn thành.");
+    } else {
+        session.removeAttribute("success");
+        session.setAttribute("error", "Lỗi: Không thể cập nhật trạng thái hoàn thành.");
+    }
+    
+
+    response.sendRedirect("booking?action=view&id=" + bookingId);
+}
 }
