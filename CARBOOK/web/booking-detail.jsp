@@ -27,12 +27,23 @@
     
     <section class="ftco-section">
         <div class="container">
-            <c:if test="${not empty error}">
-                <div class="alert alert-danger">${error}</div>
-            </c:if>
-            <c:if test="${not empty success}">
-                <div class="alert alert-success">${success}</div>
-            </c:if>
+<c:if test="${not empty sessionScope.error}">
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="icon-exclamation-circle"></i> <strong>Lỗi:</strong> ${sessionScope.error}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    <c:remove var="error" scope="session"/> </c:if>
+
+<c:if test="${not empty sessionScope.success}">
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="icon-check-circle"></i> <strong>Thành công:</strong> ${sessionScope.success}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    <c:remove var="success" scope="session"/> </c:if>
             
             <div class="row">
                 <div class="col-md-8">
@@ -41,9 +52,29 @@
                     <div class="card mb-3">
                         <div class="card-header d-flex justify-content-between">
                             <h5>Mã đặt xe: ${booking.bookingReference}</h5>
-                            <span class="badge badge-${booking.status == 'Pending' ? 'warning' : booking.status == 'Approved' ? 'info' : booking.status == 'Completed' ? 'success' : 'secondary'} badge-lg">
-                                ${booking.status}
-                            </span>
+                            <c:choose>
+                                <c:when test="${booking.status == 'Pending'}">
+                                    <span class="badge badge-warning badge-lg">Chờ duyệt</span>
+                                </c:when>
+                                <c:when test="${booking.status == 'Approved'}">
+                                    <span class="badge badge-info badge-lg">Đã duyệt</span>
+                                </c:when>
+                                <c:when test="${booking.status == 'Paid'}">
+                                    <span class="badge badge-primary badge-lg">Đã thanh toán</span>
+                                </c:when>
+                                <c:when test="${booking.status == 'Completed'}">
+                                    <span class="badge badge-success badge-lg">Hoàn thành</span>
+                                </c:when>
+                                <c:when test="${booking.status == 'Rejected'}">
+                                    <span class="badge badge-danger badge-lg">Đã từ chối</span>
+                                </c:when>
+                                <c:when test="${booking.status == 'Cancelled'}">
+                                    <span class="badge badge-secondary badge-lg">Đã hủy</span>
+                                </c:when>
+                                <c:otherwise>
+                                    <span class="badge badge-secondary badge-lg">${booking.status}</span>
+                                </c:otherwise>
+                            </c:choose>
                         </div>
                         <div class="card-body">
                             <h6>Thông tin xe</h6>
@@ -81,6 +112,15 @@
                     <div class="card">
                         <div class="card-body">
                             <c:if test="${booking.status == 'Pending'}">
+                                <!-- Thông báo cho khách hàng -->
+                                <c:if test="${booking.customerId == sessionScope.user.userId && (sessionScope.user.roleId != 1 && sessionScope.user.roleId != 2)}">
+                                    <div class="alert alert-info">
+                                        <i class="ion-ios-information-circle"></i>
+                                        <strong>Đơn đặt xe đang chờ duyệt.</strong><br>
+                                        Bạn sẽ có thể thanh toán sau khi đơn được duyệt bởi chủ xe hoặc quản trị viên.
+                                    </div>
+                                </c:if>
+                                
                                 <c:if test="${sessionScope.user.roleId == 1 || sessionScope.user.roleId == 2}">
                                     <a href="booking?action=approve&id=${booking.bookingId}" class="btn btn-success" onclick="return confirm('Xác nhận duyệt đặt xe này?')">Duyệt</a>
                                     <button class="btn btn-danger" data-toggle="modal" data-target="#rejectModal">Từ chối</button>
@@ -91,14 +131,20 @@
                             </c:if>
                             
                             <c:if test="${booking.status == 'Approved'}">
+                                <div class="alert alert-success mb-3">
+                                    <i class="ion-ios-checkmark-circle"></i>
+                                    <strong>Đơn đặt xe đã được duyệt!</strong><br>
+                                    Vui lòng thanh toán để hoàn tất đặt xe.
+                                </div>
+                                
                                 <!-- VNPay Payment Button -->
                                 <form action="vnpay-payment" method="post" style="display: inline;">
                                     <input type="hidden" name="bookingId" value="${booking.bookingId}">
-                                    <button type="submit" class="btn btn-primary">
+                                    <button type="submit" class="btn btn-primary btn-lg">
                                         <i class="ion-ios-card"></i> Thanh toán VNPay
                                     </button>
                                 </form>
-                                <a href="payment?action=create&bookingId=${booking.bookingId}" class="btn btn-info">
+                                <a href="payment?action=create&bookingId=${booking.bookingId}" class="btn btn-info btn-lg">
                                     <i class="ion-ios-cash"></i> Thanh toán khác
                                 </a>
                                 <c:if test="${sessionScope.user.roleId == 1 || sessionScope.user.roleId == 2}">
@@ -106,8 +152,62 @@
                                 </c:if>
                             </c:if>
                             
+                            <c:if test="${booking.status == 'Paid'}">
+                                <div class="alert alert-success mb-3">
+                                    <i class="ion-ios-checkmark-circle"></i>
+                                    <strong>Đã thanh toán!</strong><br>
+                                    Đơn đặt xe của bạn đã được thanh toán thành công. Vui lòng đợi xác nhận hoàn thành.
+                                </div>
+                                <c:if test="${sessionScope.user.roleId == 1 || sessionScope.user.roleId == 2}">
+                                    <a href="booking?action=complete&id=${booking.bookingId}" class="btn btn-success btn-lg" onclick="return confirm('Xác nhận hoàn thành?')">Hoàn thành</a>
+                                </c:if>
+                            </c:if>
+                            
                             <c:if test="${booking.status == 'Completed' && booking.customerId == sessionScope.user.userId}">
-                                <a href="review?action=create&bookingId=${booking.bookingId}" class="btn btn-info">Đánh giá</a>
+                                <div class="alert alert-success mb-3">
+                                    <i class="ion-ios-checkmark-circle"></i>
+                                    <strong>Đơn đặt xe đã hoàn thành!</strong><br>
+                                    <c:choose>
+                                        <c:when test="${not empty existingReview}">
+                                            Cảm ơn bạn đã đánh giá! Bạn có thể xem lại đánh giá của mình.
+                                        </c:when>
+                                        <c:otherwise>
+                                            Cảm ơn bạn đã sử dụng dịch vụ. Bạn có thể đánh giá trải nghiệm của mình.
+                                        </c:otherwise>
+                                    </c:choose>
+                                </div>
+                                <c:choose>
+                                    <c:when test="${not empty existingReview}">
+                                        <a href="car-single.jsp?id=${car.carId}#pills-review" class="btn btn-success btn-lg">
+                                            <i class="ion-ios-eye"></i> Xem đánh giá
+                                        </a>
+                                    </c:when>
+                                    <c:otherwise>
+                                        <a href="review?action=create&bookingId=${booking.bookingId}" class="btn btn-info btn-lg">
+                                            <i class="ion-ios-star"></i> Đánh giá
+                                        </a>
+                                    </c:otherwise>
+                                </c:choose>
+                            </c:if>
+                            
+                            <c:if test="${booking.status == 'Rejected'}">
+                                <div class="alert alert-danger mb-3">
+                                    <i class="ion-ios-close-circle"></i>
+                                    <strong>Đơn đặt xe đã bị từ chối</strong><br>
+                                    <c:if test="${not empty booking.rejectionReason}">
+                                        Lý do: ${booking.rejectionReason}
+                                    </c:if>
+                                </div>
+                            </c:if>
+                            
+                            <c:if test="${booking.status == 'Cancelled'}">
+                                <div class="alert alert-warning mb-3">
+                                    <i class="ion-ios-close-circle"></i>
+                                    <strong>Đơn đặt xe đã bị hủy</strong><br>
+                                    <c:if test="${not empty booking.cancellationReason}">
+                                        Lý do: ${booking.cancellationReason}
+                                    </c:if>
+                                </div>
                             </c:if>
                             
                             <a href="booking" class="btn btn-secondary">Quay lại</a>
@@ -231,5 +331,16 @@
     <script src="js/jquery.timepicker.min.js"></script>
     <script src="js/scrollax.min.js"></script>
     <script src="js/main.js"></script>
+    
+    <script>
+    $(document).ready(function() {
+        // Sau 5 giây, thông báo sẽ tự trượt lên và biến mất
+        setTimeout(function() {
+            $(".alert-dismissible").fadeTo(500, 0).slideUp(500, function() {
+                $(this).remove();
+            });
+        }, 5000);
+    });
+</script>
 </body>
 </html>
